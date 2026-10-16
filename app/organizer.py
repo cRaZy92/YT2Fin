@@ -43,6 +43,15 @@ def media_problem(media_root: Path, min_free_gb: float = 0) -> str | None:
     return None
 
 
+def disk_space(media_root: Path) -> tuple[int, int] | None:
+    """(free, total) bytes on the filesystem holding the media folder, or None when it can't be read."""
+    try:
+        usage = shutil.disk_usage(media_root)
+    except OSError:
+        return None
+    return usage.free, usage.total
+
+
 def ensure_under_root(media_root: Path, path: Path | str) -> Path:
     root = media_root.resolve()
     resolved = Path(path).resolve()

@@ -19,9 +19,18 @@
   {% if not a.active and a.queued and a.next_download_at and not a.paused and not a.cooldown_until %}
   <span class="muted">· next download in <span data-countdown="{{ a.next_download_at|isoutc }}"></span></span>
   {% endif %}
-  {% if not a.paused and not a.cooldown_until %}
-  <button class="btn small ghost push-right" hx-post="/queue/pause" hx-swap="none">Pause queue</button>
-  {% endif %}
+  <span class="activity-right push-right">
+    {% if a.disk_total %}
+    <span class="disk{{ ' low' if a.disk_low }}" title="Media storage: {{ a.disk_free|filesize }} free of {{ a.disk_total|filesize }}{{ ' (disk low: below the minimum set in Settings)' if a.disk_low }}">
+      <span class="activity-label">Disk</span>
+      <span class="progress disk-meter"><span class="bar" style="width: {{ '%.1f'|format(a.disk_used_percent) }}%"></span></span>
+      <span>{{ a.disk_free|filesize }} free of {{ a.disk_total|filesize }}</span>
+    </span>
+    {% endif %}
+    {% if not a.paused and not a.cooldown_until %}
+    <button class="btn small ghost" hx-post="/queue/pause" hx-swap="none">Pause queue</button>
+    {% endif %}
+  </span>
 </div>
 {% for item in a.active %}
 <div class="activity-item">

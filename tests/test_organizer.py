@@ -236,3 +236,12 @@ def test_nfo_plot_follows_the_mappings_description_mode(session, config, make_ma
     apply(session, config, mapping)
     nfo = (Path(mapping.folder) / "Season 01" / "My Show S01E01 A.nfo").read_text()
     assert ET.fromstring(nfo.split("\n", 1)[1]).findtext("plot") == expected_plot
+
+
+def test_disk_space_reports_free_and_total(tmp_path):
+    free, total = organizer.disk_space(tmp_path)
+    assert 0 < free <= total
+
+
+def test_disk_space_is_none_for_a_missing_folder(tmp_path):
+    assert organizer.disk_space(tmp_path / "missing") is None

@@ -158,11 +158,16 @@ class Worker:
             queued = session.scalar(
                 select(func.count(Video.id)).select_from(Video).join(Video.mapping).where(self._eligible())
             ) or 0
+            min_free_gb = settings_mod.get_all(session)["min_free_gb"]
+        media_root = self.config.media_root
+        free, total = organizer.disk_space(media_root) or (None, None)
         return ActivitySnapshot(
             paused=self.paused, cooldown_until=self.cooldown_until, cooldown_reason=self.cooldown_reason,
             next_download_at=self.next_download_at, active=list(self.active.values()), queued=queued,
             restart_pending=self.restart_pending,
-            media_problem=self._media_problem(),
+            media_problem=organizer.media_problem(media_root, min_free_gb),
+            disk_free=free, disk_total=total,
+            disk_low=free is not None and bool(min_free_gb) and free < min_free_gb * 1024**3,
         )
 
     def _media_problem(self) -> str | None:

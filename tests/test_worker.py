@@ -279,9 +279,12 @@ async def test_worker_pauses_when_disk_space_is_low(session, session_factory, co
                         lambda path: usage._replace(free=2 * 1024**3))
     worker = make_worker(session_factory, config, notifier, clock, ok_download())
     assert worker.step() == Worker.POLL_SECONDS and not worker.active
-    assert "Low disk space" in worker.snapshot().media_problem
+    snap = worker.snapshot()
+    assert "Low disk space" in snap.media_problem
+    assert snap.disk_free == 2 * 1024**3 and snap.disk_total == usage.total and snap.disk_low
     settings_mod.set_many(session, {"min_free_gb": "0"})  # 0 disables the check
-    assert worker.snapshot().media_problem is None
+    snap = worker.snapshot()
+    assert snap.media_problem is None and snap.disk_free == 2 * 1024**3 and not snap.disk_low
     assert worker.step() == 0.0
     await worker.drain()
 

@@ -41,6 +41,16 @@ def test_activity_partial(client):
     assert response.status_code == 200 and "waiting" in response.text
 
 
+def test_activity_shows_free_disk_space(client, config, monkeypatch):
+    import shutil as _shutil
+
+    usage = _shutil.disk_usage(config.media_root)
+    monkeypatch.setattr("app.organizer.shutil.disk_usage",
+                        lambda path: usage._replace(total=4 * 1024**4, free=1536 * 1024**3))
+    text = client.get("/activity").text
+    assert "1.5 TB free of 4.0 TB" in text and "width: 62.5%" in text
+
+
 def test_pause_and_resume(client, app):
     assert client.post("/queue/pause", headers=HX).status_code == 204
     assert app.state.worker.paused

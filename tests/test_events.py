@@ -53,9 +53,11 @@ async def test_notifier_renders_progress_and_activity():
     event = await q.get()
     assert event.name == "progress-7" and "width: 42.5%" in event.data and "2.0 KiB/s" in event.data
     notifier.activity(ActivitySnapshot(active=[item], queued=3, cooldown_until=datetime(2026, 1, 1),
-                                       cooldown_reason="429"))
+                                       cooldown_reason="429", disk_free=2 * 1024**3, disk_total=8 * 1024**3,
+                                       disk_low=True))
     event = await q.get()
     assert event.name == "activity" and "3 waiting" in event.data and "rate-limited" in event.data
+    assert "2.0 GB free of 8.0 GB" in event.data and "disk low" in event.data
     notifier.sync_status(1, "<b>bad</b>")
     assert (await q.get()).data == "&lt;b&gt;bad&lt;/b&gt;"
     notifier.video_changed(7, 1)
