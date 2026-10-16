@@ -167,3 +167,14 @@ def test_poster_copied_from_first_episode_thumb(session, config, make_mapping, d
     done_video(mapping, "a", "x/a.mkv", title="A")
     apply(session, config, mapping)
     assert (Path(mapping.folder) / "poster.jpg").read_text() == "thumb a"
+
+
+def test_execute_moves_rolls_back_when_a_move_fails(tmp_path):
+    a = put(tmp_path, "a.mkv", "A")
+    b = put(tmp_path, "b.mkv", "B")
+    blocker = put(tmp_path, "y.mkv", "BLOCK")
+    with pytest.raises(FileExistsError):
+        organizer.execute_moves([(a, tmp_path / "x.mkv"), (b, blocker)])
+    assert a.read_text() == "A" and b.read_text() == "B" and blocker.read_text() == "BLOCK"
+    assert not (tmp_path / "x.mkv").exists()
+    assert not list(tmp_path.glob(".ytjs-move-*"))

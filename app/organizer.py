@@ -79,16 +79,28 @@ def companion_files(media_path: Path) -> list[Path]:
 
 def execute_moves(moves: list[tuple[Path, Path]]) -> None:
     """Rename src->dst in two phases (via unique temp names) so swaps and cycles never collide."""
-    staged: list[tuple[Path, Path]] = []
-    for src, dst in moves:
-        tmp = src.with_name(f".ytjs-move-{uuid.uuid4().hex}")
-        os.rename(src, tmp)
-        staged.append((tmp, dst))
-    for tmp, dst in staged:
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        if dst.exists():
-            raise FileExistsError(f"Refusing to overwrite {dst}")
-        os.rename(tmp, dst)
+    staged: list[tuple[Path, Path, Path]] = []  # (original, temp, destination)
+    done: list[tuple[Path, Path]] = []  # (original, current location)
+    try:
+        for src, dst in moves:
+            tmp = src.with_name(f".ytjs-move-{uuid.uuid4().hex}")
+            os.rename(src, tmp)
+            staged.append((src, tmp, dst))
+            done.append((src, tmp))
+        for index, (src, tmp, dst) in enumerate(staged):
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if dst.exists():
+                raise FileExistsError(f"Refusing to overwrite {dst}")
+            os.rename(tmp, dst)
+            done[index] = (src, dst)
+    except OSError:
+        # Put every file back where it was so nothing is left behind under a hidden temp name.
+        for src, current in reversed(done):
+            try:
+                os.rename(current, src)
+            except OSError:
+                log.exception("Could not restore %s to %s", current, src)
+        raise
 
 
 def _group_moves(folder: Path, current: Path, target_rel: str) -> list[tuple[Path, Path]]:
