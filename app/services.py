@@ -125,11 +125,10 @@ def update_mapping(session: Session, media_root: Path, mapping: Mapping, data: M
 
 
 def delete_mapping(session: Session, media_root: Path, mapping: Mapping, delete_files: bool) -> None:
-    folder = mapping.folder
+    if delete_files:
+        organizer.delete_mapping_files(media_root, mapping)
     session.delete(mapping)
     session.commit()
-    if delete_files:
-        organizer.delete_mapping_folder(media_root, folder)
 
 
 def _get_video(mapping: Mapping, video_id: int) -> Video:

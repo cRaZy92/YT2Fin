@@ -170,3 +170,16 @@ def test_mapping_stats(session, make_mapping, add_video):
     add_video(mapping, "c", status=VideoStatus.DONE)
     stats = services.mapping_stats(session)[mapping.id]
     assert stats["done"] == 2 and stats["pending"] == 1 and stats["total"] == 3 and stats["failed"] == 0
+
+
+def test_delete_mapping_files_only_removes_what_the_app_owns(session, config, add_video):
+    mapping = services.create_mapping(session, config.media_root, show_input(folder="existing"))
+    folder = Path(mapping.folder)
+    (folder / "my-own-movie.mkv").write_text("MINE")
+    put_done(session, mapping, add_video, "a", "Ep")
+    services.reorder(session, config.media_root, mapping, [v.id for v in mapping.videos])  # places a into Season 01
+    assert (folder / "Season 01" / "Veritasium S01E01 Ep.mkv").exists()
+    services.delete_mapping(session, config.media_root, mapping, delete_files=True)
+    assert (folder / "my-own-movie.mkv").read_text() == "MINE"
+    assert not (folder / "Season 01").exists()
+    assert not (folder / "tvshow.nfo").exists()

@@ -52,14 +52,15 @@ def test_delete_video_files(session, config, make_mapping, add_video, tmp_path):
     assert not season.exists() or list(season.iterdir()) == []
 
 
-def test_delete_mapping_folder_refuses_outside_root(config, tmp_path):
+def test_delete_mapping_files_refuses_outside_root(make_mapping, config, tmp_path):
     outside = tmp_path / "outside"
-    outside.mkdir()
+    mapping = make_mapping(folder=str(outside))
+    (outside / "tvshow.nfo").write_text("x")
     try:
-        organizer.delete_mapping_folder(config.media_root, str(outside))
+        organizer.delete_mapping_files(config.media_root, mapping)
     except organizer.PathError:
         pass
-    assert outside.exists()
+    assert (outside / "tvshow.nfo").exists()
 
 
 def test_reconcile(session, config, make_mapping, add_video):

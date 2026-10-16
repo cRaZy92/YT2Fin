@@ -246,10 +246,18 @@ def delete_video_files(media_root: Path, mapping: Mapping, video: Video) -> None
         path.unlink(missing_ok=True)
 
 
-def delete_mapping_folder(media_root: Path, mapping_folder: str) -> None:
-    folder = ensure_under_root(media_root, mapping_folder)
-    if folder.exists():
-        shutil.rmtree(folder)
+def delete_mapping_files(media_root: Path, mapping: Mapping) -> None:
+    """Remove only what this app put there; the user's own files in the folder survive."""
+    folder = mapping_dir(media_root, mapping)
+    if not folder.is_dir():
+        return
+    for video in mapping.videos:
+        delete_video_files(media_root, mapping, video)
+    for name in ("tvshow.nfo", "poster.jpg"):
+        (folder / name).unlink(missing_ok=True)
+    _remove_empty_dirs(folder)
+    if not any(folder.iterdir()):
+        folder.rmdir()
 
 
 def reconcile(session: Session, media_root: Path, staging_dir: Path, max_len: int) -> None:

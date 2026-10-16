@@ -73,7 +73,7 @@
 <form class="panel danger-zone" method="post" action="/mappings/{{ mapping.id }}/delete"
       onsubmit="return confirm('Delete this mapping?')">
   <h2>Delete mapping</h2>
-  <label class="check"><input type="checkbox" name="delete_files"> Also delete its folder and every downloaded file</label>
+  <label class="check"><input type="checkbox" name="delete_files"> Also delete the files this app downloaded (other files in the folder are kept)</label>
   <p><button class="btn danger">Delete mapping</button></p>
 </form>
 {% endif %}
