@@ -99,3 +99,18 @@ async def test_syncer_passes_include_shorts_to_fetch(session, session_factory, c
     assert seen["args"] == ("https://www.youtube.com/@Chan", True)
     assert await syncer.add_url(mapping.id, "https://www.youtube.com/@Other") == 0
     assert seen["args"] == ("https://www.youtube.com/@Other", True)
+
+
+def test_title_filter_only_adds_matching_videos_on_sync(session, make_mapping):
+    mapping = make_mapping(title_filter="photos with disturbing backstories")
+    entries = [Entry("p1", "Photos With Disturbing Backstories | Episode 1"),
+               Entry("c1", "Cases With The Most INSANE Twists | Episode 1"),
+               Entry("p2", "PHOTOS WITH DISTURBING BACKSTORIES | Episode 2")]
+    added = add_entries(session, mapping, entries, "sync")
+    assert [v.youtube_id for v in added] == ["p1", "p2"]
+
+
+def test_manual_add_ignores_the_title_filter(session, make_mapping):
+    mapping = make_mapping(title_filter="photos")
+    added = add_entries(session, mapping, [Entry("c1", "Cases With Twists")], "manual")
+    assert [v.youtube_id for v in added] == ["c1"]

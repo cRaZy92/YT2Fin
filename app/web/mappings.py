@@ -28,7 +28,7 @@ OVERRIDE_FIELDS = [
 
 NEW_VALUES: dict[str, Any] = {
     "name": "", "type": "show", "folder": "", "playlist_url": "", "show_title": "",
-    "enabled": True, "sync_interval_minutes": "", "include_shorts": False, "overrides": {},
+    "enabled": True, "sync_interval_minutes": "", "include_shorts": False, "title_filter": "", "overrides": {},
 }
 
 
@@ -47,6 +47,7 @@ def _form_to_input(form) -> MappingInput:
         enabled=form.get("enabled") == "on",
         sync_interval_minutes=interval_value,
         include_shorts=form.get("include_shorts") == "on",
+        title_filter=form.get("title_filter"),
         overrides={key: form.get(f"ov_{key}", "") for key in settings_mod.OVERRIDABLE},
     )
 
@@ -56,7 +57,7 @@ def _values_from_form(form) -> dict[str, Any]:
         "name": form.get("name", ""), "type": form.get("type", "show"), "folder": form.get("folder", ""),
         "playlist_url": form.get("playlist_url", ""), "show_title": form.get("show_title", ""),
         "enabled": form.get("enabled") == "on", "sync_interval_minutes": form.get("sync_interval_minutes", ""),
-        "include_shorts": form.get("include_shorts") == "on",
+        "include_shorts": form.get("include_shorts") == "on", "title_filter": form.get("title_filter", ""),
         "overrides": {k: form.get(f"ov_{k}") for k in settings_mod.OVERRIDABLE if form.get(f"ov_{k}")},
     }
 
@@ -71,7 +72,7 @@ def _values_from_mapping(mapping: Mapping, media_root: Path) -> dict[str, Any]:
         "name": mapping.name, "type": mapping.type, "folder": folder_value,
         "playlist_url": mapping.playlist_url or "", "show_title": mapping.show_title or "",
         "enabled": mapping.enabled, "sync_interval_minutes": mapping.sync_interval_minutes or "",
-        "include_shorts": mapping.include_shorts,
+        "include_shorts": mapping.include_shorts, "title_filter": mapping.title_filter or "",
         "overrides": {k: v for k, v in (mapping.overrides or {}).items() if v is not None},
     }
 

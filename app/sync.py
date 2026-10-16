@@ -23,9 +23,12 @@ def add_entries(session: Session, mapping: Mapping, entries: list[Entry], source
     ignored = {i.youtube_id: i for i in mapping.ignored}
     next_position = max((v.position for v in mapping.videos), default=0) + 1
     added: list[Video] = []
+    title_filter = (mapping.title_filter or "").casefold()
     for entry in entries:
         if entry.youtube_id in existing:
             continue
+        if source == "sync" and title_filter and title_filter not in entry.title.casefold():
+            continue  # one mapping per series: only titles containing the filter text
         if entry.youtube_id in ignored:
             if source == "sync":
                 continue

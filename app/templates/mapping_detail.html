@@ -9,6 +9,7 @@
     <div class="muted">
       {{ "Channel" if is_channel else "Playlist" }}: <a href="{{ mapping.playlist_url }}" target="_blank" rel="noopener">{{ mapping.playlist_url }}</a>
       {% if is_channel %}({{ "including Shorts" if mapping.include_shorts else "without Shorts" }}){% endif %}
+      {% if mapping.title_filter %}· only titles containing “{{ mapping.title_filter }}”{% endif %}
       · last sync {{ mapping.last_synced_at|localtime }}
       {% if mapping.last_sync_error %}· <span class="error-text">{{ mapping.last_sync_error }}</span>{% endif %}
     </div>

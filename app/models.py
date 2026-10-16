@@ -38,6 +38,7 @@ class Mapping(Base):
     last_sync_error: Mapped[str | None] = mapped_column(Text, default=None)
     show_title: Mapped[str | None] = mapped_column(String(300), default=None)
     include_shorts: Mapped[bool] = mapped_column(default=False, server_default=false())
+    title_filter: Mapped[str | None] = mapped_column(String(300), default=None)
     overrides: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 

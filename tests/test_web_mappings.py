@@ -134,3 +134,10 @@ def test_http_errors_are_plain_text_not_json(client):
     response = client.get("/folders", params={"path": "missing"})
     assert response.status_code == 404
     assert response.text == "Folder not found" and response.headers["content-type"].startswith("text/plain")
+
+
+def test_title_filter_field(client, app, session):
+    app.state.syncer = FakeSyncer()
+    assert 'name="title_filter"' in client.get("/mappings/new").text
+    client.post("/mappings", data=form(title_filter="  Photos With Disturbing Backstories "), follow_redirects=False)
+    assert session.scalars(select(Mapping)).one().title_filter == "Photos With Disturbing Backstories"

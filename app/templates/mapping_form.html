@@ -36,6 +36,11 @@
       A channel is downloaded completely, oldest upload first; new uploads become the next episodes.</small>
   </label>
   <label class="check"><input type="checkbox" name="include_shorts" {{ "checked" if v.include_shorts }}> Include Shorts (channels only)</label>
+  <label>Only titles containing
+    <input name="title_filter" value="{{ v.title_filter or '' }}" placeholder="e.g. Photos With Disturbing Backstories (leave empty for all)">
+    <small>Sync skips videos whose title doesn't contain this text (case-insensitive). Use one mapping per
+      series to turn a channel's series into separate shows. Videos you add by URL are always added.</small>
+  </label>
   <label>Sync interval (minutes)
     <input name="sync_interval_minutes" value="{{ v.sync_interval_minutes }}" inputmode="numeric" placeholder="Global default: {{ globals.sync_interval_minutes }}">
   </label>
