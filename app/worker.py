@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import logging
 import random
 import shutil
@@ -71,6 +72,8 @@ class Worker:
         self._tasks: set[asyncio.Task] = set()
         self._cancelled: set[int] = set()
         self._wake = asyncio.Event()
+        self._turns = itertools.count()
+        self._last_turn: dict[int, int] = {}
         self._stopping = False
 
     # ----- control -------------------------------------------------------------------------
@@ -187,14 +190,27 @@ class Worker:
         with self.session_factory() as session:
             if len(self.active) >= settings_mod.get_all(session)["concurrency"]:
                 return self.POLL_SECONDS
-            video_id = session.scalar(
-                select(Video.id).join(Video.mapping).where(self._eligible())
-                .order_by(Video.mapping_id, Video.position).limit(1)
-            )
+            video_id = self._next_video_id(session)
             if video_id is None:
                 return self.POLL_SECONDS
             self._start(session, video_id)
         return 0.0
+
+    def _next_video_id(self, session) -> int | None:
+        """Take turns between mappings so one huge channel backfill can't starve the others."""
+        heads = session.execute(
+            select(Video.mapping_id, func.min(Video.position)).join(Video.mapping)
+            .where(self._eligible()).group_by(Video.mapping_id)
+        ).all()
+        if not heads:
+            return None
+        mapping_id, position = min(heads, key=lambda row: (self._last_turn.get(row[0], -1), row[0]))
+        self._last_turn[mapping_id] = next(self._turns)
+        return session.scalar(
+            select(Video.id).join(Video.mapping)
+            .where(self._eligible(), Video.mapping_id == mapping_id, Video.position == position)
+            .order_by(Video.id).limit(1)
+        )
 
     def _start(self, session, video_id: int) -> None:
         video = session.get(Video, video_id)

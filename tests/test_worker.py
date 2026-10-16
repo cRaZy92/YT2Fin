@@ -216,3 +216,25 @@ async def test_worker_waits_and_reports_when_media_root_is_not_writable(session_
     assert worker.snapshot().media_problem is None
     assert worker.step() == 0.0
     await worker.drain()
+
+
+async def test_queue_takes_turns_between_mappings(session, session_factory, config, notifier, clock, make_mapping,
+                                                  add_video):
+    big = make_mapping("Big")
+    small = make_mapping("Small")
+    for yid in ("b1", "b2", "b3"):
+        add_video(big, yid)
+    for yid in ("s1", "s2"):
+        add_video(small, yid)
+    order = []
+
+    def download(yid, *args):
+        order.append(yid)
+        return ok_download()(yid, *args)
+
+    worker = make_worker(session_factory, config, notifier, clock, download)
+    for _ in range(5):
+        worker.next_download_at = None
+        assert worker.step() == 0.0
+        await worker.drain()
+    assert order == ["b1", "s1", "b2", "s2", "b3"]
