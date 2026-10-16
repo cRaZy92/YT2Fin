@@ -27,6 +27,7 @@ log = logging.getLogger(__name__)
 
 
 UPCOMING_RECHECK = timedelta(minutes=60)
+FORBIDDEN_STREAK_LIMIT = 3  # this many 403s in a row = YouTube is pushing back on the IP: cool down
 
 
 def backoff_delay(attempts: int, schedule: list[int]) -> timedelta | None:
@@ -77,6 +78,7 @@ class Worker:
         self._cancelled: set[int] = set()
         self._wake = asyncio.Event()
         self._load_cooldown()
+        self._forbidden_streak = 0
         self._turns = itertools.count()
         self._last_turn: dict[int, int] = {}
         self._stopping = False
@@ -317,6 +319,7 @@ class Worker:
             organizer.place(session, self.config.media_root, mapping, video, media, extras, opts["max_filename_length"])
             names_changed = before != (video.display_title, video.artist, video.song)
             mapping_id = mapping.id
+        self._forbidden_streak = 0
         if self.cooldown_level:
             self.cooldown_level = 0
             self._save_cooldown()
@@ -342,7 +345,7 @@ class Worker:
             elif err.kind == ErrorKind.PERMANENT:
                 video.status = VideoStatus.UNAVAILABLE
                 video.next_retry_at = None
-            else:
+            else:  # TRANSIENT and FORBIDDEN use up a retry
                 video.attempts += 1
                 delay = backoff_delay(video.attempts, values["retry_backoff_minutes"])
                 video.status = VideoStatus.FAILED
@@ -354,6 +357,11 @@ class Worker:
             mapping_id = mapping.id
         if err.kind == ErrorKind.RATE_LIMIT:
             self.enter_cooldown(err.message)
+        if err.kind == ErrorKind.FORBIDDEN:
+            self._forbidden_streak += 1
+            if self._forbidden_streak >= FORBIDDEN_STREAK_LIMIT:
+                self._forbidden_streak = 0
+                self.enter_cooldown(f"YouTube refused {FORBIDDEN_STREAK_LIMIT} downloads in a row (HTTP 403)")
         if err.kind == ErrorKind.PERMANENT:
             self.notifier.list_changed(mapping_id)
         self.notifier.video_changed(video_id, mapping_id)

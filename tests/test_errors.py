@@ -13,10 +13,14 @@ from app.errors import ErrorKind, classify
     ("ERROR: [youtube] abc: Sign in to confirm your age.", ErrorKind.PERMANENT),
     ("ERROR: [youtube] abc: Sign in to confirm you’re not a bot", ErrorKind.RATE_LIMIT),
     ("ERROR: unable to download video data: HTTP Error 429: Too Many Requests", ErrorKind.RATE_LIMIT),
-    ("ERROR: unable to download video data: HTTP Error 403: Forbidden", ErrorKind.TRANSIENT),
+    ("ERROR: unable to download video data: HTTP Error 403: Forbidden", ErrorKind.FORBIDDEN),
     ("ERROR: [youtube] abc: Premieres in 3 hours", ErrorKind.NOT_YET),
     ("ERROR: [youtube] abc: This live event will begin in 2 days.", ErrorKind.NOT_YET),
     ("Connection reset by peer", ErrorKind.TRANSIENT),
 ])
 def test_classify(message, kind):
     assert classify(message) == kind
+
+
+def test_403_is_its_own_kind():
+    assert classify("ERROR: unable to download video data: HTTP Error 403: Forbidden") == ErrorKind.FORBIDDEN

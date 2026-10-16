@@ -4,6 +4,8 @@ import threading
 from datetime import timedelta
 from pathlib import Path
 
+from sqlalchemy import select
+
 from app.errors import ErrorKind
 from app.models import MappingType, Video, VideoStatus
 from app.worker import Worker, backoff_delay, cooldown_minutes
@@ -306,3 +308,33 @@ async def test_startup_hold_delays_downloads_until_released_or_expired(session_f
     clock.advance(minutes=6)  # never blocks forever, even if the update check hangs
     assert worker.step() == 0.0
     await worker.drain()
+
+
+async def test_repeated_403s_trigger_the_cooldown_but_a_success_resets_the_streak(session, session_factory, config,
+                                                                                  notifier, clock, make_mapping,
+                                                                                  add_video):
+    mapping = make_mapping()
+    for yid in ("a", "b", "c", "d", "e"):
+        add_video(mapping, yid)
+    outcomes = iter(["403", "403", "ok", "403", "403", "403"])
+
+    def download(yid, *args):
+        if next(outcomes) == "403":
+            raise DownloadFailed(ErrorKind.FORBIDDEN, "unable to download video data: HTTP Error 403: Forbidden")
+        return ok_download()(yid, *args)
+
+    worker = make_worker(session_factory, config, notifier, clock, download)
+    for _ in range(5):
+        worker.next_download_at = None
+        worker.step()
+        await worker.drain()
+        assert worker.cooldown_until is None
+    worker.next_download_at = None
+    clock.advance(minutes=30)  # let the first failures' retries come due
+    worker.step()
+    await worker.drain()
+    assert worker.cooldown_until == clock.now + timedelta(minutes=60)
+    assert "403" in worker.cooldown_reason
+    session.expire_all()
+    first = session.scalars(select(Video).where(Video.youtube_id == "a")).one()
+    assert first.status == VideoStatus.FAILED and first.attempts == 2
