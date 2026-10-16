@@ -41,6 +41,20 @@
     <small>Sync skips videos whose title doesn't contain this text (case-insensitive). Use one mapping per
       series to turn a channel's series into separate shows. Videos you add by URL are always added.</small>
   </label>
+  <label>Episode descriptions in Jellyfin
+    <select name="description_mode">
+      {% for value, label in [("cleaned", "Cleaned: drop links, sponsors, promo codes, socials and footers"),
+                              ("first_paragraph", "First paragraph only (after cleaning)"),
+                              ("full", "Full YouTube description"), ("none", "None")] %}
+      <option value="{{ value }}" {{ "selected" if v.description_mode == value }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <small>Changing this rewrites the descriptions of already downloaded videos too.</small>
+  </label>
+  <label>Also remove description lines containing
+    <textarea name="description_remove" rows="2" placeholder="one per line, e.g. NordVPN">{{ v.description_remove or '' }}</textarea>
+    <small>Case-insensitive; for channel-specific sponsors or catchphrases.</small>
+  </label>
   <label>Sync interval (minutes)
     <input name="sync_interval_minutes" value="{{ v.sync_interval_minutes }}" inputmode="numeric" placeholder="Global default: {{ globals.sync_interval_minutes }}">
   </label>

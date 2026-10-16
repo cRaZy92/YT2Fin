@@ -215,3 +215,24 @@ def test_tvshow_nfo_written_by_older_versions_is_still_updated(session, config, 
     session.commit()
     apply(session, config, mapping)
     assert "<title>New Name</title>" in (folder / "tvshow.nfo").read_text()
+
+
+DESC = "The actual story of this video.\n\nThis video is sponsored by Acme! Use code X: https://acme.example\nAcmeCorp rocks."
+
+
+@pytest.mark.parametrize("mode, extra, expected_plot", [
+    ("cleaned", None, "The actual story of this video.\n\nAcmeCorp rocks."),
+    ("cleaned", "acmecorp", "The actual story of this video."),
+    ("first_paragraph", None, "The actual story of this video."),
+    ("full", None, DESC),
+    ("none", None, None),
+])
+def test_nfo_plot_follows_the_mappings_description_mode(session, config, make_mapping, done_video, mode, extra,
+                                                       expected_plot):
+    from xml.etree import ElementTree as ET
+
+    mapping = make_mapping(description_mode=mode, description_remove=extra)
+    done_video(mapping, "a", "x/a.mkv", title="A", description=DESC)
+    apply(session, config, mapping)
+    nfo = (Path(mapping.folder) / "Season 01" / "My Show S01E01 A.nfo").read_text()
+    assert ET.fromstring(nfo.split("\n", 1)[1]).findtext("plot") == expected_plot

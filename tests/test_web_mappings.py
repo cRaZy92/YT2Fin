@@ -141,3 +141,12 @@ def test_title_filter_field(client, app, session):
     assert 'name="title_filter"' in client.get("/mappings/new").text
     client.post("/mappings", data=form(title_filter="  Photos With Disturbing Backstories "), follow_redirects=False)
     assert session.scalars(select(Mapping)).one().title_filter == "Photos With Disturbing Backstories"
+
+
+def test_description_fields_in_form(client, app, session):
+    app.state.syncer = FakeSyncer()
+    page = client.get("/mappings/new").text
+    assert 'name="description_mode"' in page and 'name="description_remove"' in page
+    client.post("/mappings", data=form(description_mode="none", description_remove="sponsor x"), follow_redirects=False)
+    mapping = session.scalars(select(Mapping)).one()
+    assert (mapping.description_mode, mapping.description_remove) == ("none", "sponsor x")

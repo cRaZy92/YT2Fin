@@ -39,6 +39,8 @@ class Mapping(Base):
     show_title: Mapped[str | None] = mapped_column(String(300), default=None)
     include_shorts: Mapped[bool] = mapped_column(default=False, server_default=false())
     title_filter: Mapped[str | None] = mapped_column(String(300), default=None)
+    description_mode: Mapped[str] = mapped_column(String(20), default="cleaned", server_default="cleaned")
+    description_remove: Mapped[str | None] = mapped_column(Text, default=None)  # extra "remove lines containing"
     overrides: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 

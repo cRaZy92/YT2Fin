@@ -212,3 +212,11 @@ def test_retrying_an_unavailable_video_renumbers_the_rest(session, config, make_
     assert (Path(mapping.folder) / "Season 01" / "My Show S01E01 B.mkv").exists()
     services.retry_video(session, config.media_root, gone)
     assert (Path(mapping.folder) / "Season 01" / "My Show S01E02 B.mkv").exists()
+
+
+def test_description_settings_are_saved_and_validated(session, config):
+    mapping = services.create_mapping(session, config.media_root, show_input(
+        description_mode="first_paragraph", description_remove="NordVPN\nRaid Shadow Legends"))
+    assert (mapping.description_mode, mapping.description_remove) == ("first_paragraph", "NordVPN\nRaid Shadow Legends")
+    with pytest.raises(ServiceError):
+        services.create_mapping(session, config.media_root, show_input(name="X", folder="x", description_mode="ai"))

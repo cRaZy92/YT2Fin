@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import organizer
+from app import descriptions, organizer
 from app import settings as settings_mod
 from app.models import IgnoredVideo, Mapping, MappingType, SeasonBreak, Video, VideoStatus
 
@@ -30,6 +30,8 @@ class MappingInput:
     sync_interval_minutes: int | None = None
     include_shorts: bool = False
     title_filter: str | None = None
+    description_mode: str = "cleaned"
+    description_remove: str | None = None
     overrides: dict[str, Any] = field(default_factory=dict)
 
 
@@ -90,6 +92,8 @@ def _validate(data: MappingInput) -> dict[str, Any]:
         raise ServiceError("Type must be show or music_video")
     if data.playlist_url and not data.playlist_url.startswith(("http://", "https://")):
         raise ServiceError("Playlist URL must start with http:// or https://")
+    if data.description_mode not in descriptions.MODES:
+        raise ServiceError(f"Description must be one of: {', '.join(descriptions.MODES)}")
     if data.sync_interval_minutes is not None and data.sync_interval_minutes < 5:
         raise ServiceError("Sync interval must be at least 5 minutes")
     return settings_mod.coerce_overrides(data.overrides or {})
@@ -103,6 +107,8 @@ def _assign(mapping: Mapping, data: MappingInput, overrides: dict[str, Any]) -> 
     mapping.sync_interval_minutes = data.sync_interval_minutes
     mapping.include_shorts = data.include_shorts
     mapping.title_filter = (data.title_filter or "").strip() or None
+    mapping.description_mode = data.description_mode
+    mapping.description_remove = (data.description_remove or "").strip() or None
     mapping.overrides = overrides
 
 

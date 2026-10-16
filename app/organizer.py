@@ -11,7 +11,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import naming, nfo
+from app import descriptions, naming, nfo
 from app.models import Mapping, MappingType, Video, VideoStatus
 
 log = logging.getLogger(__name__)
@@ -182,6 +182,7 @@ def _write_metadata(folder: Path, mapping: Mapping) -> None:
     show_title = mapping.show_title or mapping.name
     is_show = mapping.type == MappingType.SHOW
     numbers = naming.season_episode(naming_items(mapping)) if is_show else {}
+    remove_terms = descriptions.parse_terms(mapping.description_remove)
     if is_show:
         tvshow = folder / "tvshow.nfo"
         # Never clobber a tvshow.nfo someone else wrote (a curated one, or Jellyfin's own).
@@ -197,12 +198,14 @@ def _write_metadata(folder: Path, mapping: Mapping) -> None:
             season, episode = numbers[video.id]
             content = nfo.episode_nfo(
                 title=video.display_title, show_title=show_title, season=season, episode=episode,
-                plot=video.description, aired=video.upload_date, youtube_id=video.youtube_id,
+                plot=descriptions.clean_description(video.description, mapping.description_mode, remove_terms),
+                aired=video.upload_date, youtube_id=video.youtube_id,
             )
         else:
             content = nfo.musicvideo_nfo(
                 title=video.song or video.display_title, artist=video.artist or "",
-                plot=video.description, premiered=video.upload_date, youtube_id=video.youtube_id,
+                plot=descriptions.clean_description(video.description, mapping.description_mode, remove_terms),
+                premiered=video.upload_date, youtube_id=video.youtube_id,
             )
         _write_if_changed(media.with_suffix(".nfo"), content)
     if is_show:

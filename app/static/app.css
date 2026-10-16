@@ -62,7 +62,7 @@ button.link { background: none; border: none; color: var(--accent); cursor: poin
 .progress.indeterminate .bar { width: 30%; position: absolute; animation: indeterminate 1.2s ease-in-out infinite; }
 @keyframes indeterminate { 0% { left: -30%; } 100% { left: 100%; } }
 .progress-text { font-size: .8em; color: var(--muted); }
-input, select { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; width: 100%; }
+input, select, textarea { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; width: 100%; }
 input[type=checkbox] { width: auto; }
 .form { display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
 .form label, .settings label { display: flex; flex-direction: column; gap: 4px; font-weight: 500; }
