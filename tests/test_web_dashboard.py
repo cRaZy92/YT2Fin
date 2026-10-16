@@ -125,3 +125,11 @@ def test_cross_site_posts_are_rejected(client, app):
     assert client.post("/queue/pause", headers={"Origin": "http://testserver", **HX}).status_code == 204
     assert client.post("/queue/resume", headers={"Sec-Fetch-Site": "same-origin", **HX}).status_code == 204
     assert client.get("/", headers={"Origin": "http://evil.example"}).status_code == 200
+
+
+def test_activity_banner_shows_media_problem(client, config):
+    config.media_root.chmod(0o555)
+    try:
+        assert "not writable" in client.get("/activity").text
+    finally:
+        config.media_root.chmod(0o755)

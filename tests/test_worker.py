@@ -201,3 +201,18 @@ async def test_music_metadata_reparsed_unless_user_edited(session, session_facto
     assert (reload(session, auto).artist, reload(session, auto).song) == ("Queen", "Song auto")
     assert (reload(session, edited).artist, reload(session, edited).song) == ("Mine", "Mine")
     assert (Path(mapping.folder) / "Queen - Song auto.mkv").exists()
+
+
+async def test_worker_waits_and_reports_when_media_root_is_not_writable(session_factory, config, notifier, clock,
+                                                                       make_mapping, add_video):
+    add_video(make_mapping(), "a")
+    worker = make_worker(session_factory, config, notifier, clock, ok_download())
+    config.media_root.chmod(0o555)
+    try:
+        assert worker.step() == Worker.POLL_SECONDS and not worker.active
+        assert "not writable" in worker.snapshot().media_problem
+    finally:
+        config.media_root.chmod(0o755)
+    assert worker.snapshot().media_problem is None
+    assert worker.step() == 0.0
+    await worker.drain()

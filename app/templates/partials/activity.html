@@ -1,3 +1,6 @@
+{% if a.media_problem %}
+<div class="banner error">{{ a.media_problem }}</div>
+{% endif %}
 {% if a.restart_pending %}
 <div class="banner info">yt-dlp was updated. The app restarts as soon as no download is running.</div>
 {% endif %}

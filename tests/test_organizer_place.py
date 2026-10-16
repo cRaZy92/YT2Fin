@@ -142,3 +142,15 @@ def test_place_fails_when_mapping_folder_missing(session, config, make_mapping, 
     with pytest.raises(FileNotFoundError, match="mounted"):
         organizer.place(session, config.media_root, mapping, video, media, [], 180)
     assert not Path(mapping.folder).exists()
+
+
+def test_reconcile_still_requeues_interrupted_downloads_when_media_is_not_writable(session, config, make_mapping,
+                                                                                  add_video):
+    video = add_video(make_mapping(), "d", status=VideoStatus.DOWNLOADING)
+    config.media_root.chmod(0o555)
+    try:
+        organizer.reconcile(session, config.media_root, config.staging_dir, 180)
+    finally:
+        config.media_root.chmod(0o755)
+    session.expire_all()
+    assert session.get(Video, video.id).status == VideoStatus.PENDING

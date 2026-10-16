@@ -26,3 +26,4 @@ class ActivitySnapshot:
     active: list[ActiveItem] = field(default_factory=list)
     queued: int = 0
     restart_pending: bool = False
+    media_problem: str | None = None

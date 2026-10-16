@@ -26,6 +26,16 @@ class PathError(ValueError):
     pass
 
 
+def media_problem(media_root: Path) -> str | None:
+    """Why the media folder can't be used right now, or None when it's fine."""
+    if not media_root.is_dir():
+        return f"Media folder {media_root} does not exist (is the volume mounted?)"
+    if not os.access(media_root, os.W_OK | os.X_OK):
+        return (f"Media folder {media_root} is not writable by user {os.getuid()}:{os.getgid()}. "
+                "Fix its owner/permissions or set PUID/PGID to its owner. Downloads are paused until then.")
+    return None
+
+
 def ensure_under_root(media_root: Path, path: Path | str) -> Path:
     root = media_root.resolve()
     resolved = Path(path).resolve()
@@ -262,12 +272,16 @@ def delete_mapping_files(media_root: Path, mapping: Mapping) -> None:
 
 def reconcile(session: Session, media_root: Path, staging_dir: Path, max_len: int) -> None:
     """Startup repair: clean staging, requeue interrupted/missing downloads, re-apply naming."""
-    if staging_dir.exists():
-        shutil.rmtree(staging_dir)
-    staging_dir.mkdir(parents=True, exist_ok=True)
     for video in session.scalars(select(Video).where(Video.status == VideoStatus.DOWNLOADING)).all():
         video.status = VideoStatus.PENDING
     session.commit()
+    problem = media_problem(media_root)
+    if problem:
+        log.error("%s Skipping file checks until it is fixed.", problem)
+        return
+    if staging_dir.exists():
+        shutil.rmtree(staging_dir)
+    staging_dir.mkdir(parents=True, exist_ok=True)
     for mapping in session.scalars(select(Mapping)).all():
         try:
             folder = mapping_dir(media_root, mapping)

@@ -134,6 +134,7 @@ class Worker:
             paused=self.paused, cooldown_until=self.cooldown_until, cooldown_reason=self.cooldown_reason,
             next_download_at=self.next_download_at, active=list(self.active.values()), queued=queued,
             restart_pending=self.restart_pending,
+            media_problem=organizer.media_problem(self.config.media_root),
         )
 
     def publish_activity(self) -> None:
@@ -178,6 +179,8 @@ class Worker:
         if self.is_blocked():
             if self.cooldown_until is not None:
                 return max(1.0, min((self.cooldown_until - now).total_seconds(), self.POLL_SECONDS))
+            return self.POLL_SECONDS
+        if organizer.media_problem(self.config.media_root):
             return self.POLL_SECONDS
         if self.next_download_at is not None and now < self.next_download_at:
             return min((self.next_download_at - now).total_seconds(), self.POLL_SECONDS)
