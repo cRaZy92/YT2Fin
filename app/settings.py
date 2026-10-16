@@ -120,6 +120,20 @@ def set_many(session: Session, raw: dict[str, Any]) -> dict[str, Any]:
     return merged
 
 
+STATE_PREFIX = "_state."
+
+
+def get_state(session: Session, key: str, default: Any = None) -> Any:
+    """Small internal runtime state (not user settings) that must survive restarts."""
+    row = session.get(Setting, STATE_PREFIX + key)
+    return row.value if row is not None else default
+
+
+def set_state(session: Session, key: str, value: Any) -> None:
+    session.merge(Setting(key=STATE_PREFIX + key, value=value))
+    session.commit()
+
+
 def resolve(session: Session, mapping: Mapping) -> dict[str, Any]:
     values = get_all(session)
     for key, value in (mapping.overrides or {}).items():

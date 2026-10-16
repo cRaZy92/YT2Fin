@@ -282,3 +282,16 @@ async def test_worker_pauses_when_disk_space_is_low(session, session_factory, co
     assert worker.snapshot().media_problem is None
     assert worker.step() == 0.0
     await worker.drain()
+
+
+async def test_cooldown_survives_a_restart(session_factory, config, notifier, clock):
+    first = make_worker(session_factory, config, notifier, clock, ok_download())
+    first.enter_cooldown("HTTP Error 429")
+    first.enter_cooldown("HTTP Error 429")
+    restarted = make_worker(session_factory, config, notifier, clock, ok_download())
+    assert restarted.cooldown_until == clock.now + timedelta(minutes=120)
+    assert restarted.cooldown_level == 2 and restarted.cooldown_reason == "HTTP Error 429"
+    assert restarted.is_blocked()
+    restarted.resume()
+    again = make_worker(session_factory, config, notifier, clock, ok_download())
+    assert again.cooldown_until is None and not again.is_blocked()

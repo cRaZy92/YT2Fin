@@ -75,6 +75,7 @@ class Worker:
         self._tasks: set[asyncio.Task] = set()
         self._cancelled: set[int] = set()
         self._wake = asyncio.Event()
+        self._load_cooldown()
         self._turns = itertools.count()
         self._last_turn: dict[int, int] = {}
         self._stopping = False
@@ -91,6 +92,7 @@ class Worker:
         self.paused = False
         self.cooldown_until = None
         self.cooldown_reason = None
+        self._save_cooldown()
         self.kick()
         self.publish_activity()
 
@@ -110,8 +112,24 @@ class Worker:
         minutes = cooldown_minutes(self.cooldown_level, values["cooldown_minutes"], values["cooldown_max_minutes"])
         self.cooldown_until = self._now() + timedelta(minutes=minutes)
         self.cooldown_reason = reason[:200]
+        self._save_cooldown()
         log.warning("YouTube rate limit hit (%s); pausing downloads for %d minutes", reason, minutes)
         self.publish_activity()
+
+    def _load_cooldown(self) -> None:
+        with self.session_factory() as session:
+            saved = settings_mod.get_state(session, "cooldown") or {}
+        until = saved.get("until")
+        self.cooldown_until = datetime.fromisoformat(until) if until else None
+        self.cooldown_level = saved.get("level", 0)
+        self.cooldown_reason = saved.get("reason")
+
+    def _save_cooldown(self) -> None:
+        with self.session_factory() as session:
+            settings_mod.set_state(session, "cooldown", {
+                "until": self.cooldown_until.isoformat() if self.cooldown_until else None,
+                "level": self.cooldown_level, "reason": self.cooldown_reason,
+            })
 
     def is_blocked(self) -> bool:
         if self.cooldown_until is not None and self._now() >= self.cooldown_until:
@@ -294,7 +312,9 @@ class Worker:
             organizer.place(session, self.config.media_root, mapping, video, media, extras, opts["max_filename_length"])
             names_changed = before != (video.display_title, video.artist, video.song)
             mapping_id = mapping.id
-        self.cooldown_level = 0
+        if self.cooldown_level:
+            self.cooldown_level = 0
+            self._save_cooldown()
         log.info("Downloaded %s", info.title)
         if names_changed:
             self.notifier.list_changed(mapping_id)
