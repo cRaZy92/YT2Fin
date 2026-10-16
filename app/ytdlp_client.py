@@ -18,6 +18,9 @@ MEDIA_EXTS = {".mkv", ".mp4", ".webm", ".m4v", ".mov"}
 EXTRA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".srt", ".vtt", ".ass"}
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
 _PLACEHOLDER_TITLES = {"[Private video]", "[Deleted video]"}
+_CHANNEL_URL = re.compile(
+    r"^(?P<base>https?://(?:www\.|m\.)?youtube\.com/(?:@[^/?#]+|channel/[^/?#]+|c/[^/?#]+|user/[^/?#]+))"
+)
 _VCODEC_FILTER = {"h264": "[vcodec^=avc1]", "av1": "[vcodec^=av01]", "vp9": "[vcodec~='^vp0?9']"}
 
 
@@ -194,6 +197,33 @@ def fetch_entries(url: str, settings: dict[str, Any], cookiefile: Path | None) -
         message = _clean_message(str(exc))
         raise DownloadFailed(classify(message), message) from exc
     return entries_from_info(info or {})
+
+
+def is_channel_url(url: str) -> bool:
+    return _CHANNEL_URL.match(url.strip()) is not None
+
+
+def channel_tab_urls(url: str, include_shorts: bool) -> list[str]:
+    """Regular uploads live in the channel's /videos tab, Shorts in /shorts."""
+    base = _CHANNEL_URL.match(url.strip()).group("base")
+    return [f"{base}/videos"] + ([f"{base}/shorts"] if include_shorts else [])
+
+
+def fetch_source_entries(url: str, settings: dict[str, Any], cookiefile: Path | None,
+                         include_shorts: bool = False) -> list[Entry]:
+    """Entries of a playlist (in playlist order) or a channel (oldest upload first)."""
+    if not is_channel_url(url):
+        return fetch_entries(url, settings, cookiefile)
+    entries: list[Entry] = []
+    for tab_url in channel_tab_urls(url, include_shorts):
+        try:
+            tab = fetch_entries(tab_url, settings, cookiefile)
+        except DownloadFailed as exc:
+            if tab_url.endswith("/shorts") and "does not have a shorts tab" in exc.message.lower():
+                continue
+            raise
+        entries.extend(reversed(tab))  # YouTube lists newest first
+    return entries
 
 
 def collect_outputs(staging_dir: Path) -> tuple[Path | None, list[Path]]:

@@ -137,3 +137,61 @@ def test_download_error_is_classified(fake_ydl, tmp_path):
 def test_download_cancelled(fake_ydl, tmp_path):
     with pytest.raises(Cancelled):
         ytdlp_client.download("abc", opts_for(), tmp_path / "stage", None, lambda d: None, lambda: True)
+
+
+@pytest.mark.parametrize("url, expected", [
+    ("https://www.youtube.com/@Veritasium", True),
+    ("https://youtube.com/@Veritasium/videos", True),
+    ("https://www.youtube.com/channel/UCHnyfMqiRRG1u-2MsSQLbXA", True),
+    ("https://www.youtube.com/c/veritasium/shorts?view=0", True),
+    ("https://www.youtube.com/user/1veritasium", True),
+    ("https://m.youtube.com/@Veritasium/featured", True),
+    ("https://www.youtube.com/playlist?list=PL123", False),
+    ("https://www.youtube.com/watch?v=abc&list=PL123", False),
+    ("https://youtu.be/abc", False),
+])
+def test_is_channel_url(url, expected):
+    assert ytdlp_client.is_channel_url(url) is expected
+
+
+def test_channel_tab_urls_normalise_to_videos_and_optional_shorts():
+    assert ytdlp_client.channel_tab_urls("https://www.youtube.com/@Veritasium/featured?x=1", False) == [
+        "https://www.youtube.com/@Veritasium/videos"]
+    assert ytdlp_client.channel_tab_urls("https://youtube.com/channel/UCabc/", True) == [
+        "https://youtube.com/channel/UCabc/videos", "https://youtube.com/channel/UCabc/shorts"]
+
+
+def test_fetch_source_entries_channel_is_oldest_first_and_skips_shorts_by_default(monkeypatch):
+    calls = []
+
+    def fake_fetch(url, settings, cookiefile):
+        calls.append(url)
+        tab = url.rsplit("/", 1)[1]
+        return {"videos": [ytdlp_client.Entry("v3", "V3"), ytdlp_client.Entry("v2", "V2"), ytdlp_client.Entry("v1", "V1")],
+                "shorts": [ytdlp_client.Entry("s2", "S2"), ytdlp_client.Entry("s1", "S1")]}[tab]
+
+    monkeypatch.setattr(ytdlp_client, "fetch_entries", fake_fetch)
+    entries = ytdlp_client.fetch_source_entries("https://www.youtube.com/@Chan", opts_for(), None, include_shorts=False)
+    assert [e.youtube_id for e in entries] == ["v1", "v2", "v3"]
+    assert calls == ["https://www.youtube.com/@Chan/videos"]
+    entries = ytdlp_client.fetch_source_entries("https://www.youtube.com/@Chan", opts_for(), None, include_shorts=True)
+    assert [e.youtube_id for e in entries] == ["v1", "v2", "v3", "s1", "s2"]
+
+
+def test_fetch_source_entries_tolerates_channel_without_shorts_tab(monkeypatch):
+    def fake_fetch(url, settings, cookiefile):
+        if url.endswith("/shorts"):
+            raise DownloadFailed(ErrorKind.TRANSIENT, "[youtube:tab] @Chan: This channel does not have a shorts tab")
+        return [ytdlp_client.Entry("v1", "V1")]
+
+    monkeypatch.setattr(ytdlp_client, "fetch_entries", fake_fetch)
+    entries = ytdlp_client.fetch_source_entries("https://www.youtube.com/@Chan", opts_for(), None, include_shorts=True)
+    assert [e.youtube_id for e in entries] == ["v1"]
+
+
+def test_fetch_source_entries_playlist_keeps_playlist_order(monkeypatch):
+    monkeypatch.setattr(ytdlp_client, "fetch_entries",
+                        lambda url, settings, cookiefile: [ytdlp_client.Entry("b", "B"), ytdlp_client.Entry("a", "A")])
+    entries = ytdlp_client.fetch_source_entries("https://www.youtube.com/playlist?list=PL", opts_for(), None,
+                                                include_shorts=False)
+    assert [e.youtube_id for e in entries] == ["b", "a"]

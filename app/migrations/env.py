@@ -12,7 +12,7 @@ from alembic import context
 from sqlalchemy import create_engine
 
 from app import models  # noqa: F401  (registers tables)
-from app.db import Base
+from app.db import Base, migration_connection
 
 target_metadata = Base.metadata
 
@@ -42,11 +42,11 @@ def run_online() -> None:
             context.run_migrations()
         return
     engine = create_engine(_url())
-    with engine.connect() as conn:
-        conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
+    with migration_connection(engine) as conn:
         _configure(connection=conn)
         with context.begin_transaction():
             context.run_migrations()
+    engine.dispose()
 
 
 if context.is_offline_mode():

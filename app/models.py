@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import JSON, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import JSON, ForeignKey, String, Text, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -37,6 +37,7 @@ class Mapping(Base):
     last_synced_at: Mapped[datetime | None] = mapped_column(default=None)
     last_sync_error: Mapped[str | None] = mapped_column(Text, default=None)
     show_title: Mapped[str | None] = mapped_column(String(300), default=None)
+    include_shorts: Mapped[bool] = mapped_column(default=False, server_default=false())
     overrides: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 

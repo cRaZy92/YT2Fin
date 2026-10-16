@@ -31,11 +31,25 @@ def test_migrations_match_the_models(tmp_path):
     assert diff == []
 
 
+def make_legacy_database(engine) -> None:
+    """The schema create_all produced before migrations existed (= revision 0001), without a version row."""
+    from alembic import command
+
+    config = db.alembic_config()
+    with db.migration_connection(engine) as conn:
+        config.attributes["connection"] = conn
+        command.upgrade(config, db.BASELINE_REVISION)
+        conn.exec_driver_sql("DROP TABLE alembic_version")
+
+
 def test_legacy_create_all_database_is_adopted_without_data_loss(tmp_path):
     engine = make_engine(tmp_path / "app.db")
-    Base.metadata.create_all(engine)  # how databases were created before migrations existed
+    make_legacy_database(engine)
     with engine.begin() as conn:
-        conn.execute(sa.insert(Mapping).values(name="Old", type="show", folder="/media/old", overrides={}))
+        conn.exec_driver_sql(
+            "INSERT INTO mappings (name, type, folder, enabled, overrides, created_at) "
+            "VALUES ('Old', 'show', '/media/old', 1, '{}', '2026-01-01 00:00:00')"
+        )
     init_db(engine, tmp_path / "backups")
     assert db.current_revision(engine) == db.head_revision()
     with engine.connect() as conn:
@@ -93,3 +107,32 @@ def test_migration_scripts_ship_inside_the_package():
     scripts = Path(db.__file__).parent / "migrations"
     assert (scripts / "env.py").is_file() and (scripts / "script.py.mako").is_file()
     assert list((scripts / "versions").glob("*.py"))
+
+
+def test_0002_adds_include_shorts_defaulting_to_false_for_existing_mappings(tmp_path):
+    from alembic import command
+
+    engine = make_engine(tmp_path / "app.db")
+    config = db.alembic_config()
+    with db.migration_connection(engine) as conn:
+        config.attributes["connection"] = conn
+        command.upgrade(config, "0001")
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            "INSERT INTO mappings (name, type, folder, enabled, overrides, created_at) "
+            "VALUES ('Old', 'show', '/media/old', 1, '{}', '2026-01-01 00:00:00')"
+        )
+    init_db(engine, tmp_path / "backups")
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql("SELECT include_shorts FROM mappings").scalar() == 0
+    assert len(list((tmp_path / "backups").iterdir())) == 1
+
+
+def test_cli_upgrade_without_app_connection_records_the_revision(tmp_path):
+    """The developer CLI path (`alembic upgrade`) must commit the version row, not just the DDL."""
+    from alembic import command
+
+    config = db.alembic_config()
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{tmp_path / 'cli.db'}")
+    command.upgrade(config, "head")
+    assert db.current_revision(make_engine(tmp_path / "cli.db")) == db.head_revision()
