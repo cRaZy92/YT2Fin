@@ -22,7 +22,8 @@ playlist URL. Leave the URL empty for a manual list and paste video URLs on the 
 | `AUTH_USER` / `AUTH_PASSWORD` | unset | Enable HTTP basic auth |
 | `PORT` | 8080 | Web UI port |
 
-Volumes: `/config` (database, cookies, logs) and `/media` (shared with Jellyfin).
+Volumes: `/config` (database, cookies, logs) and `/media`: the folder your Jellyfin libraries point at.
+The service only writes files there; it never talks to Jellyfin itself.
 
 ## Jellyfin setup
 
