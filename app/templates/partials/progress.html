@@ -1,0 +1,7 @@
+{% if p.stage == "downloading" %}
+<div class="progress"><div class="bar" style="width: {{ p.percent or 0 }}%"></div></div>
+<span class="progress-text">{% if p.percent is not none %}{{ "%.1f"|format(p.percent) }}%{% else %}Downloading{% endif %}{% if p.speed %} · {{ p.speed|speed }}{% endif %}{% if p.eta %} · ETA {{ p.eta|duration }}{% endif %}</span>
+{% else %}
+<div class="progress indeterminate"><div class="bar"></div></div>
+<span class="progress-text">{{ "Processing" if p.stage == "processing" else "Starting" }}{% if p.detail %} · {{ p.detail }}{% endif %}…</span>
+{% endif %}

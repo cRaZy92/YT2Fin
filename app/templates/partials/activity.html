@@ -1,0 +1,28 @@
+{% if a.restart_pending %}
+<div class="banner info">yt-dlp was updated. The app restarts as soon as no download is running.</div>
+{% endif %}
+{% if a.cooldown_until %}
+<div class="banner warn">
+  Downloads paused: YouTube rate-limited us{% if a.cooldown_reason %} ({{ a.cooldown_reason }}){% endif %}.
+  Resuming at {{ a.cooldown_until|localtime("%H:%M") }} (in <span data-countdown="{{ a.cooldown_until|isoutc }}"></span>).
+  <button class="btn small" hx-post="/queue/resume" hx-swap="none">Resume now</button>
+</div>
+{% elif a.paused %}
+<div class="banner warn">Queue paused. <button class="btn small" hx-post="/queue/resume" hx-swap="none">Resume</button></div>
+{% endif %}
+<div class="activity-bar">
+  <span class="activity-label">Queue</span>
+  <span>{{ a.queued }} waiting</span>
+  {% if not a.active and a.queued and a.next_download_at and not a.paused and not a.cooldown_until %}
+  <span class="muted">· next download in <span data-countdown="{{ a.next_download_at|isoutc }}"></span></span>
+  {% endif %}
+  {% if not a.paused and not a.cooldown_until %}
+  <button class="btn small ghost push-right" hx-post="/queue/pause" hx-swap="none">Pause queue</button>
+  {% endif %}
+</div>
+{% for item in a.active %}
+<div class="activity-item">
+  <div class="activity-title"><a href="/mappings/{{ item.mapping_id }}">{{ item.mapping_name }}</a> · {{ item.title }}</div>
+  <div class="progress-wrap" sse-swap="progress-{{ item.video_id }}">{% with p = item %}{% include "partials/progress.html" %}{% endwith %}</div>
+</div>
+{% endfor %}
