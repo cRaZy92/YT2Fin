@@ -19,7 +19,7 @@ A channel is downloaded completely, oldest upload first, so new uploads become t
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `PUID` / `PGID` | 1000 | Owner of downloaded files (match Jellyfin's user) |
+| `PUID` / `PGID` | 1000 | Owner of downloaded files (match Jellyfin's user). `/media` must be writable by this user; an empty folder Docker auto-created as root is claimed automatically |
 | `TZ` | UTC | Time zone for the UI |
 | `AUTH_USER` / `AUTH_PASSWORD` | unset | Enable HTTP basic auth |
 | `PORT` | 8080 | Web UI port |
