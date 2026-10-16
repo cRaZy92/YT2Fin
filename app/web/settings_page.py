@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import asyncio
+import json
 import os
+import urllib.request
 from datetime import UTC, datetime
 from typing import Annotated
 from urllib.parse import urlencode
@@ -30,6 +33,16 @@ def looks_like_cookies(text: str) -> bool:
     return bool(data) and all(len(line.split("\t")) == 7 for line in data)
 
 
+def probe_pot_provider(url: str) -> str:
+    """Status line for the PO-token provider (blocking; quick timeout)."""
+    try:
+        with urllib.request.urlopen(f"{url.rstrip('/')}/ping", timeout=3) as response:
+            version = json.loads(response.read() or b"{}").get("version", "?")
+        return f"connected (server {version})"
+    except (OSError, ValueError) as exc:
+        return f"not reachable at {url} ({exc.__class__.__name__}): downloads may hit HTTP 403"
+
+
 def _installed_version() -> str:
     try:
         return updater_mod.installed_version()
@@ -37,7 +50,7 @@ def _installed_version() -> str:
         return "unknown"
 
 
-def _page(request: Request, session, *, values=None, error=None, status_code=200):
+def _page(request: Request, session, *, values=None, error=None, status_code=200, pot_status=None):
     config = request.app.state.config
     cookie_file = config.cookiefile()
     updater = request.app.state.updater
@@ -50,6 +63,8 @@ def _page(request: Request, session, *, values=None, error=None, status_code=200
         "ytdlp_installed": _installed_version(),
         "last_update": updater.last_result,
         "last_checked": updater.last_checked_at,
+        "pot_status": pot_status,
+        "pot_url": config.pot_provider_url,
         "cookies_present": cookie_file is not None,
         "cookies_mtime": datetime.fromtimestamp(cookie_file.stat().st_mtime, UTC).replace(tzinfo=None) if cookie_file else None,
     }, status_code=status_code)
@@ -61,7 +76,13 @@ def _redirect(message: str) -> RedirectResponse:
 
 @router.get("/settings")
 async def settings_page(request: Request, session: SessionDep):
-    return _page(request, session)
+    return await _page_async(request, session)
+
+
+async def _page_async(request: Request, session, **kwargs):
+    url = request.app.state.config.pot_provider_url
+    status = await asyncio.to_thread(probe_pot_provider, url) if url else None
+    return _page(request, session, pot_status=status, **kwargs)
 
 
 @router.post("/settings")

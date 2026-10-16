@@ -12,3 +12,4 @@ uv pip compile pyproject.toml --python-version 3.12 --python-platform x86_64-man
 } > requirements.lock
 rm -f "$tmp"
 echo "requirements.lock updated; sync your venv with: uv pip install --python .venv -r requirements.lock"
+echo "If bgutil-ytdlp-pot-provider changed, set the same tag on the pot-provider image in docker-compose.yml."

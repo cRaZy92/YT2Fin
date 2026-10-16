@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import PlainTextResponse
 
-from app import organizer
+from app import organizer, ytdlp_client
 from app import settings as settings_mod
 from app.config import AppConfig, load_config
 from app.db import init_db, make_engine, make_session_factory
@@ -111,6 +111,7 @@ def create_app(config: AppConfig | None = None, *, start_background: bool = True
     bus = EventBus()
     notifier = Notifier(bus, templates.env)
     log_buffer.listener = notifier.log_line
+    ytdlp_client.configure(pot_provider_url=config.pot_provider_url)
     worker = Worker(session_factory, config, notifier)
     syncer = Syncer(session_factory, config, worker, notifier)
     updater = Updater(worker)

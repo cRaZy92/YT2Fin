@@ -82,3 +82,18 @@ def test_changing_max_filename_length_renames_existing_files(client, session, ma
     assert client.post("/settings", data={"max_filename_length": "60"}, follow_redirects=False).status_code == 303
     names = [p.name for p in (folder / "Season 01").glob("*.mkv")]
     assert len(names) == 1 and len(names[0].encode()) <= 60 + len(".mkv")
+
+
+def test_settings_page_shows_po_token_provider_status(client, app, monkeypatch):
+    from app.web import settings_page
+
+    monkeypatch.setattr(settings_page, "probe_pot_provider", lambda url: "connected (server 2.0.2)")
+    object.__setattr__(app.state.config, "pot_provider_url", "http://pot-provider:4416")
+    assert "connected (server 2.0.2)" in client.get("/settings").text
+
+
+def test_load_config_reads_pot_provider_url():
+    from app.config import load_config
+
+    assert load_config({"POT_PROVIDER_URL": "http://p:4416"}).pot_provider_url == "http://p:4416"
+    assert load_config({}).pot_provider_url is None

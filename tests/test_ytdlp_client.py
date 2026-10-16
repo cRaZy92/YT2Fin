@@ -232,3 +232,11 @@ def test_download_of_live_stream_reports_not_yet(fake_ydl, tmp_path, monkeypatch
 ])
 def test_friendly_stage_labels(pp, label):
     assert ytdlp_client.stage_label(pp) == label
+
+
+def test_po_token_provider_is_passed_to_yt_dlp_when_configured(monkeypatch):
+    monkeypatch.setattr(ytdlp_client, "_pot_provider_url", None)
+    assert "extractor_args" not in ytdlp_client.common_opts(opts_for(), None)
+    ytdlp_client.configure(pot_provider_url="http://pot-provider:4416")
+    assert ytdlp_client.common_opts(opts_for(), None)["extractor_args"] == {
+        "youtubepot-bgutilhttp": {"base_url": ["http://pot-provider:4416"]}}

@@ -11,6 +11,8 @@ dependencies = [
   "alembic>=1.13",
   "yt-dlp[default]>=2025.11.12",
   "deno>=2.0",
+  # PO-token plugin; must be the same version as the brainicism/bgutil-ytdlp-pot-provider image in docker-compose.yml
+  "bgutil-ytdlp-pot-provider==2.0.2",
 ]
 
 [project.optional-dependencies]

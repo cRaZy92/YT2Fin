@@ -47,7 +47,21 @@ The service only writes files there; it never talks to Jellyfin itself.
 The database is backed up to `CONFIG_PATH/backups/` before every schema migration. Back up `CONFIG_PATH`
 itself too: it holds your mappings, order and renames.
 
-## Jellyfin setup
+## Avoiding YouTube blocks (HTTP 403)
+
+YouTube restricts IPs that download a lot, for example during a big channel backfill. Three things work against that:
+
+- **PO token provider.** The compose file runs `brainicism/bgutil-ytdlp-pot-provider` next to the app.
+  It generates the "proof of origin" tokens YouTube's own player sends, so requests aren't refused with 403.
+  It's internal only, and Settings shows whether it's connected. Its image tag must match the
+  `bgutil-ytdlp-pot-provider` version in `requirements.lock`, because the plugin refuses a server of
+  another version (a test enforces this).
+- **Cool-down.** A 429, a "confirm you're not a bot", or 3 HTTP 403s in a row pause all downloads
+  (60 min, doubling up to 12 h).
+- **Pacing.** By default the app waits a random 60–180 s between downloads. Raise this under
+  Settings → Throttling for very large backfills.
+
+
 
 1. Create a **Shows** library pointing at the folder that holds your show mappings
    (e.g. `/media/youtube/shows`), and a **Music Videos** library for music-video mappings.

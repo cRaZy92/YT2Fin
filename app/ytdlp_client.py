@@ -24,6 +24,15 @@ _CHANNEL_URL = re.compile(
 _VCODEC_FILTER = {"h264": "[vcodec^=avc1]", "av1": "[vcodec^=av01]", "vp9": "[vcodec~='^vp0?9']"}
 
 
+_pot_provider_url: str | None = None
+
+
+def configure(*, pot_provider_url: str | None) -> None:
+    """Process-wide yt-dlp options that come from the environment (set once at startup)."""
+    global _pot_provider_url
+    _pot_provider_url = pot_provider_url
+
+
 class DownloadFailed(Exception):
     def __init__(self, kind: ErrorKind, message: str) -> None:
         super().__init__(message)
@@ -128,6 +137,9 @@ def common_opts(settings: dict[str, Any], cookiefile: Path | None) -> dict[str, 
         opts["sleep_interval_requests"] = settings["sleep_requests"]
     if cookiefile:
         opts["cookiefile"] = str(cookiefile)
+    if _pot_provider_url:
+        # PO tokens make requests look like YouTube's own player; without them YouTube answers 403
+        opts["extractor_args"] = {"youtubepot-bgutilhttp": {"base_url": [_pot_provider_url]}}
     return opts
 
 

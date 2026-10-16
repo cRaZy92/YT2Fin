@@ -81,6 +81,14 @@
   <div class="actions"><button class="btn">Save settings</button></div>
 </form>
 <div class="panel">
+  <h2>PO token provider</h2>
+  {% if pot_url %}
+  <p>{{ pot_status or "Reload this page to check the connection." }}</p>
+  {% else %}
+  <p class="muted">Not configured. Set <code>POT_PROVIDER_URL</code> (the compose file runs one) to reduce HTTP 403 errors.</p>
+  {% endif %}
+</div>
+<div class="panel">
   <h2>yt-dlp update</h2>
   <form method="post" action="/settings/ytdlp/update"><button class="btn ghost">Check for update now</button></form>
 </div>

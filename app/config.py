@@ -13,6 +13,7 @@ class AppConfig:
     auth_user: str | None = None
     auth_password: str | None = None
     port: int = 8080
+    pot_provider_url: str | None = None  # bgutil PO-token provider, e.g. http://pot-provider:4416
 
     @property
     def db_path(self) -> Path:
@@ -41,4 +42,5 @@ def load_config(env: MappingABC[str, str] = os.environ) -> AppConfig:
         auth_user=env.get("AUTH_USER") or None,
         auth_password=env.get("AUTH_PASSWORD") or None,
         port=int(env.get("PORT", "8080")),
+        pot_provider_url=env.get("POT_PROVIDER_URL") or None,
     )

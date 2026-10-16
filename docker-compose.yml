@@ -14,6 +14,17 @@ services:
       TZ: "${TZ:-Europe/Bratislava}"
       AUTH_USER: "${AUTH_USER:-}"          # set both to enable HTTP basic auth
       AUTH_PASSWORD: "${AUTH_PASSWORD:-}"
+      POT_PROVIDER_URL: "${POT_PROVIDER_URL:-http://pot-provider:4416}"
+    depends_on:
+      - pot-provider
     volumes:
       - "${CONFIG_PATH:-./config}:/config"   # database, cookies, backups, logs
       - "${MEDIA_PATH:-./media}:/media"      # the folder your Jellyfin libraries point at
+
+  # Generates YouTube PO tokens so downloads look like YouTube's own player (avoids HTTP 403).
+  # Internal only: no published port (its API has no authentication).
+  # The tag must equal the bgutil-ytdlp-pot-provider version in requirements.lock (a test checks this).
+  pot-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider:2.0.2
+    init: true
+    restart: unless-stopped
