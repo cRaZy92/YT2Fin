@@ -96,3 +96,12 @@ async def test_updater_up_to_date_and_failure(fake_worker):
     result = await Updater(fake_worker, upgrade=broken, installed=lambda: "1", running=lambda: "1").check()
     assert result == "Update failed: ERROR: no network"
     assert fake_worker.restart_pending is False
+
+
+async def test_updater_treats_zero_padded_versions_as_equal(fake_worker):
+    async def ok():
+        return 0, ""
+
+    updater = Updater(fake_worker, upgrade=ok, installed=lambda: "2026.8.19", running=lambda: "2026.08.19")
+    assert "Up to date" in await updater.check()
+    assert fake_worker.restart_pending is False

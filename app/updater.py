@@ -33,6 +33,11 @@ async def pip_upgrade() -> tuple[int, str]:
     return proc.returncode or 0, output.decode(errors="replace")
 
 
+def _normalize(version: str) -> tuple:
+    """yt-dlp reports '2026.08.19' while package metadata says '2026.8.19' (PEP 440)."""
+    return tuple(int(part) if part.isdigit() else part for part in version.strip().split("."))
+
+
 class Updater:
     def __init__(self, worker, *, upgrade=pip_upgrade, installed=installed_version, running=running_version) -> None:
         self.worker = worker
@@ -54,7 +59,7 @@ class Updater:
                 log.error(self.last_result)
                 return self.last_result
             installed, running = self._installed(), self._running()
-            if installed != running:
+            if _normalize(installed) != _normalize(running):
                 self.last_result = f"Installed yt-dlp {installed}; restarting when idle"
                 self.worker.restart_pending = True
                 self.worker.kick()
