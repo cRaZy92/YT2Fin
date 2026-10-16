@@ -295,3 +295,14 @@ async def test_cooldown_survives_a_restart(session_factory, config, notifier, cl
     restarted.resume()
     again = make_worker(session_factory, config, notifier, clock, ok_download())
     assert again.cooldown_until is None and not again.is_blocked()
+
+
+async def test_startup_hold_delays_downloads_until_released_or_expired(session_factory, config, notifier, clock,
+                                                                      make_mapping, add_video):
+    add_video(make_mapping(), "a")
+    worker = make_worker(session_factory, config, notifier, clock, ok_download())
+    worker.hold_until = clock.now + timedelta(minutes=5)
+    assert worker.step() > 0 and not worker.active
+    clock.advance(minutes=6)  # never blocks forever, even if the update check hangs
+    assert worker.step() == 0.0
+    await worker.drain()

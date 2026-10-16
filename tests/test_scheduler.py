@@ -105,3 +105,18 @@ async def test_updater_treats_zero_padded_versions_as_equal(fake_worker):
     updater = Updater(fake_worker, upgrade=ok, installed=lambda: "2026.8.19", running=lambda: "2026.08.19")
     assert "Up to date" in await updater.check()
     assert fake_worker.restart_pending is False
+
+
+async def test_first_update_check_releases_the_startup_hold(session_factory, fake_worker, clock):
+    fake_worker.hold_until = clock.now
+    scheduler = make_scheduler(session_factory, fake_worker, clock, [])
+    await scheduler.tick()
+    assert fake_worker.hold_until is None and fake_worker.kicks >= 1
+
+
+async def test_startup_hold_released_even_when_auto_update_is_off(session, session_factory, fake_worker, clock):
+    settings_mod.set_many(session, {"ytdlp_auto_update": False})
+    fake_worker.hold_until = clock.now
+    scheduler = make_scheduler(session_factory, fake_worker, clock, [])
+    await scheduler.tick()
+    assert fake_worker.hold_until is None

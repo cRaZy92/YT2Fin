@@ -6,6 +6,7 @@ import binascii
 import logging
 import secrets
 from contextlib import asynccontextmanager
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -24,6 +25,7 @@ from app.notify import Notifier
 from app.scheduler import Scheduler
 from app.sync import Syncer
 from app.templating import templates
+from app.timeutil import utcnow
 from app.updater import Updater
 from app.web import dashboard, mappings, settings_page, sse, videos
 from app.worker import Worker
@@ -126,6 +128,8 @@ def create_app(config: AppConfig | None = None, *, start_background: bool = True
         tasks: list[asyncio.Task] = []
         if start_background:
             worker.on_idle = lambda: request_restart(app)
+            # Don't start a download while the startup yt-dlp self-update may be swapping modules.
+            worker.hold_until = utcnow() + timedelta(minutes=5)
             tasks = [asyncio.create_task(worker.run()), asyncio.create_task(scheduler.run())]
         log.info("yt-jellyfin-sync started (media=%s, config=%s)", config.media_root, config.config_dir)
         try:

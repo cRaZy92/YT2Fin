@@ -70,6 +70,7 @@ class Worker:
         self.cooldown_level = 0
         self.next_download_at: datetime | None = None
         self.restart_pending = False
+        self.hold_until: datetime | None = None  # startup: wait for the first yt-dlp update check
         self.on_idle: Callable[[], None] | None = None
         self.active: dict[int, ActiveItem] = {}
         self._tasks: set[asyncio.Task] = set()
@@ -210,6 +211,10 @@ class Worker:
             if self.cooldown_until is not None:
                 return max(1.0, min((self.cooldown_until - now).total_seconds(), self.POLL_SECONDS))
             return self.POLL_SECONDS
+        if self.hold_until is not None:
+            if now < self.hold_until:
+                return min((self.hold_until - now).total_seconds(), self.POLL_SECONDS)
+            self.hold_until = None
         if self._media_problem():
             return self.POLL_SECONDS
         if self.next_download_at is not None and now < self.next_download_at:

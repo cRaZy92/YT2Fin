@@ -113,6 +113,7 @@ class FakeWorker:
         self.cancelled_mappings: list[int] = []
         self.paused = False
         self.cooldown_until = None
+        self.hold_until = None
 
     def kick(self) -> None:
         self.kicks += 1

@@ -54,6 +54,9 @@ class Scheduler:
                 await self.updater.check()
             except Exception:
                 log.exception("yt-dlp update check failed")
+        if getattr(self.worker, "hold_until", None) is not None:
+            self.worker.hold_until = None  # startup update check is done (or disabled): start downloading
+            self.worker.kick()
         if self.worker.is_blocked():
             return
         with self.session_factory() as session:
