@@ -8,10 +8,23 @@ _INVALID = re.compile(r'[<>:"/\\|?*\x00-\x1f\x7f]')
 _SPACES = re.compile(r"\s+")
 
 
+def _nbytes(text: str) -> int:
+    return len(text.encode("utf-8"))
+
+
+def _clip(text: str, max_bytes: int) -> str:
+    """Cut to at most max_bytes of UTF-8 without splitting a character (Linux names are byte-limited)."""
+    data = text.encode("utf-8")
+    if len(data) <= max_bytes:
+        return text
+    return data[:max(max_bytes, 0)].decode("utf-8", errors="ignore")
+
+
 def sanitize(name: str, max_len: int = 180, fallback: str = "untitled") -> str:
+    """max_len is in UTF-8 bytes."""
     cleaned = _INVALID.sub(" ", name)
     cleaned = _SPACES.sub(" ", cleaned).strip().lstrip(".").strip()
-    cleaned = cleaned[:max_len].rstrip(" .")
+    cleaned = _clip(cleaned, max_len).rstrip(" .")
     return cleaned or fallback
 
 
@@ -42,14 +55,14 @@ def episode_code(season: int, episode: int) -> str:
 
 def _show_stem(show_title: str, season: int, episode: int, title: str, max_len: int) -> str:
     prefix = f"{sanitize(show_title, max_len // 2, fallback='Show')} {episode_code(season, episode)}"
-    title_part = sanitize(title, max(max_len - len(prefix) - 1, 0), fallback="")
+    title_part = sanitize(title, max(max_len - _nbytes(prefix) - 1, 0), fallback="")
     name = f"{prefix} {title_part}" if title_part else prefix
     return f"Season {season:02d}/{name}"
 
 
 def _music_stem(artist: str, song: str, max_len: int) -> str:
     artist_part = sanitize(artist, max_len // 2, fallback="Unknown Artist")
-    song_part = sanitize(song, max_len - len(artist_part) - 3, fallback="Untitled")
+    song_part = sanitize(song, max_len - _nbytes(artist_part) - 3, fallback="Untitled")
     return f"{artist_part} - {song_part}"
 
 

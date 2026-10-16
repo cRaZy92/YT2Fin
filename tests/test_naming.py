@@ -79,3 +79,19 @@ def test_hostile_titles():
 def test_unknown_type_raises():
     with pytest.raises(ValueError):
         compute_stems("movie", "", [NamingItem(1)])
+
+
+def test_sanitize_caps_utf8_bytes_on_character_boundary():
+    out = sanitize("日本語" * 100, max_len=100)
+    assert len(out.encode()) <= 100
+    out.encode().decode()  # no split multi-byte character
+
+
+def test_long_cjk_and_emoji_names_fit_linux_255_byte_limit_with_companions():
+    items = [NamingItem(1, title="長いタイトル" * 60), NamingItem(2, artist="🔥" * 80, song="歌" * 200)]
+    show = compute_stems("show", "番組" * 50, items[:1])[1].split("/")[1]
+    music = compute_stems("music_video", "", items[1:])[2]
+    for name in (show, music):
+        assert len(name.encode()) <= 180
+        assert len((name + "-thumb.jpg").encode()) <= 255
+    assert "S01E01" in show

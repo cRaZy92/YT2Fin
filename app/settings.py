@@ -90,8 +90,9 @@ def _validate(values: dict[str, Any]) -> None:
         raise SettingsError("Minimum delay between downloads must not exceed the maximum delay")
     if values["concurrency"] < 1:
         raise SettingsError("Concurrent downloads must be at least 1")
-    if not 60 <= values["max_filename_length"] <= 240:
-        raise SettingsError("Max filename length must be between 60 and 240")
+    # bytes; 255 (Linux limit) minus room for the longest companion tail such as ".en-US.srt"
+    if not 60 <= values["max_filename_length"] <= 230:
+        raise SettingsError("Max filename length must be between 60 and 230 bytes")
     if values["max_sleep_interval"] and values["max_sleep_interval"] < values["sleep_interval"]:
         raise SettingsError("Max sleep interval must be at least the sleep interval")
     if values["cooldown_minutes"] < 1 or values["cooldown_max_minutes"] < values["cooldown_minutes"]:

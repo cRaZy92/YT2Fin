@@ -56,3 +56,9 @@ def test_coerce_overrides_drops_inherit_values():
 def test_coerce_overrides_rejects_non_overridable():
     with pytest.raises(SettingsError):
         settings.coerce_overrides({"concurrency": "2"})
+
+
+def test_max_filename_length_capped_below_255_bytes_minus_companion_tail(session):
+    with pytest.raises(SettingsError):
+        settings.set_many(session, {"max_filename_length": "240"})
+    settings.set_many(session, {"max_filename_length": "230"})

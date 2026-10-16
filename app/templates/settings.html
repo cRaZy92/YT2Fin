@@ -69,7 +69,7 @@
         <input name="retry_backoff_minutes" value="{{ v.retry_backoff_minutes|join(', ') if v.retry_backoff_minutes is not string else v.retry_backoff_minutes }}">
         <small>wait before each automatic retry; after the last one a video stays failed</small>
       </label>
-      {{ number("max_filename_length", "Max file name length") }}
+      {{ number("max_filename_length", "Max file name length (bytes)", "60–230; non-Latin characters take 2–4 bytes each") }}
     </div>
   </fieldset>
   <fieldset><legend>yt-dlp</legend>
