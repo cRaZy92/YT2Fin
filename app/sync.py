@@ -17,6 +17,11 @@ from app.ytdlp_client import DownloadFailed, Entry
 log = logging.getLogger(__name__)
 
 
+def title_matches(title_filter: str | None, title: str) -> bool:
+    """A mapping's title filter: case-insensitive "contains"; empty matches everything."""
+    return not title_filter or title_filter.strip().casefold() in title.casefold()
+
+
 def add_entries(session: Session, mapping: Mapping, entries: list[Entry], source: str) -> list[Video]:
     """Append unseen entries at the end. Sync skips ignored ids; a manual add un-ignores them."""
     existing = {v.youtube_id for v in mapping.videos}
@@ -25,11 +30,10 @@ def add_entries(session: Session, mapping: Mapping, entries: list[Entry], source
     # Original numbers never shrink after deletes, so they stay unique per mapping.
     next_original = max((v.original_position or 0 for v in mapping.videos), default=0) + 1
     added: list[Video] = []
-    title_filter = (mapping.title_filter or "").casefold()
     for entry in entries:
         if entry.youtube_id in existing:
             continue
-        if source == "sync" and title_filter and title_filter not in entry.title.casefold():
+        if source == "sync" and not title_matches(mapping.title_filter, entry.title):
             continue  # one mapping per series: only titles containing the filter text
         if entry.youtube_id in ignored:
             if source == "sync":

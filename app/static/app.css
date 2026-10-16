@@ -111,3 +111,10 @@ legend { font-weight: 600; padding: 0 6px; }
 }
 .edit-preview { flex-basis: 100%; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: .85em; }
 .edit-preview code { font-family: ui-monospace, monospace; word-break: break-all; }
+.preview .preview-rows { margin: 0 0 12px; padding-left: 24px; }
+.preview .preview-rows li { margin: 2px 0; }
+.preview .preview-rows li.skipped { opacity: .55; }
+.preview code { font-family: ui-monospace, monospace; font-size: .85em; word-break: break-all; }
+.preview h3 { font-size: 1rem; margin: 16px 0 8px; }
+.desc-sample { border-top: 1px solid var(--border); padding: 8px 0; }
+.desc-sample pre { white-space: pre-wrap; font: inherit; font-size: .9em; margin: 6px 0; }

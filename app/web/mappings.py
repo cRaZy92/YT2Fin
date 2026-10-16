@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 
-from app import services
+from app import preview, services
 from app import settings as settings_mod
 from app.models import Mapping
 from app.naming import sanitize
@@ -107,6 +107,22 @@ async def create_mapping(request: Request, session: SessionDep):
     if mapping.playlist_url:
         spawn(request.app, request.app.state.syncer.sync(mapping.id))
     return RedirectResponse(f"/mappings/{mapping.id}", status_code=303)
+
+
+@router.post("/mappings/preview")
+async def preview_mapping(request: Request, session: SessionDep):
+    """Dry run of the (unsaved) form: nothing is stored or downloaded."""
+    form = await request.form()
+    if request.app.state.worker.cooldown_until is not None:
+        return render(request, "partials/mapping_preview.html",
+                      {"error": "YouTube is rate-limiting us right now; try the preview again later."})
+    try:
+        data = _form_to_input(form)
+        values = settings_mod.get_all(session) | settings_mod.coerce_overrides(data.overrides or {})
+        result = await preview.build_preview(data, values, request.app.state.config.cookiefile())
+    except ValueError as exc:
+        return render(request, "partials/mapping_preview.html", {"error": str(exc)})
+    return render(request, "partials/mapping_preview.html", {"p": result})
 
 
 @router.get("/mappings/{mapping_id}/edit")

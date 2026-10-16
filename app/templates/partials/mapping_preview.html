@@ -1,0 +1,25 @@
+<div class="panel preview">
+  {% if error %}
+  <div class="banner error">{{ error }}</div>
+  {% else %}
+  <p><strong>{{ p.total }} videos found</strong>{% if p.matched != p.total %} · {{ p.matched }} match the title filter · {{ p.total - p.matched }} skipped{% endif %}</p>
+  <p class="muted">In the order they'd be added{% if p.total > p.rows|length %} (first {{ p.rows|length }}){% endif %}:</p>
+  <ol class="preview-rows">
+    {% for r in p.rows %}
+    <li class="{{ 'skipped' if not r.included }}">
+      {% if r.included %}<code>{{ r.file_name }}</code>{% else %}<span>{{ r.title }}</span> <span class="muted">· skipped by the title filter</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% if p.samples %}
+  <h3>Descriptions as Jellyfin will show them</h3>
+  {% for s in p.samples %}
+  <div class="desc-sample">
+    <strong>{{ s.title }}</strong>
+    <pre>{{ s.result or "(no description)" }}</pre>
+    <details><summary>Original from YouTube</summary><pre>{{ s.original or "(empty)" }}</pre></details>
+  </div>
+  {% endfor %}
+  {% endif %}
+  {% endif %}
+</div>

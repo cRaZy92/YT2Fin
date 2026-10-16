@@ -86,6 +86,12 @@
     </div>
   </details>
   <div class="actions">
+    <button type="button" class="btn ghost" hx-post="/mappings/preview" hx-include="closest form"
+            hx-target="#mapping-preview" hx-swap="innerHTML" hx-indicator="#preview-loading">Preview</button>
+    <span id="preview-loading" class="htmx-indicator muted">Asking YouTube… large channels take a moment</span>
+  </div>
+  <div id="mapping-preview"></div>
+  <div class="actions">
     <button class="btn">{{ "Save" if mapping else "Create mapping" }}</button>
     <a class="btn ghost" href="{{ ('/mappings/%d'|format(mapping.id)) if mapping else '/' }}">Cancel</a>
   </div>

@@ -208,6 +208,18 @@ def fetch_entries(url: str, settings: dict[str, Any], cookiefile: Path | None) -
     return entries_from_info(info or {})
 
 
+def fetch_video_info(youtube_id: str, settings: dict[str, Any], cookiefile: Path | None) -> VideoInfo:
+    """Full metadata (incl. description) of one video, without downloading it."""
+    opts = common_opts(settings, cookiefile) | {"skip_download": True, "noplaylist": True}
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(video_url(youtube_id), download=False)
+    except yt_dlp.utils.YoutubeDLError as exc:
+        message = _clean_message(str(exc))
+        raise DownloadFailed(classify(message), message) from exc
+    return VideoInfo.from_info(info)
+
+
 def is_channel_url(url: str) -> bool:
     return _CHANNEL_URL.match(url.strip()) is not None
 
