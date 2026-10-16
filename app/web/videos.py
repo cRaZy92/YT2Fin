@@ -75,6 +75,7 @@ async def detail(request: Request, mapping_id: int, session: SessionDep):
     context = list_context(session, mapping) | {
         "syncing": mapping_id in request.app.state.syncer.running,
         "is_channel": bool(mapping.playlist_url) and is_channel_url(mapping.playlist_url),
+        "s": services.mapping_stats(session).get(mapping_id, services.EMPTY_STATS),
     }
     return render(request, "mapping_detail.html", context)
 

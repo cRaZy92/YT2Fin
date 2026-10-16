@@ -154,3 +154,33 @@ def test_reconcile_still_requeues_interrupted_downloads_when_media_is_not_writab
         config.media_root.chmod(0o755)
     session.expire_all()
     assert session.get(Video, video.id).status == VideoStatus.PENDING
+
+
+def test_place_records_file_size_and_download_time(session, config, make_mapping, add_video, tmp_path):
+    mapping = make_mapping()
+    video = add_video(mapping, "a", status=VideoStatus.DOWNLOADING)
+    [media] = staged(tmp_path, {"media.mkv": "x" * 1234})
+    organizer.place(session, config.media_root, mapping, video, media, [], 180)
+    assert video.file_size == 1234 and video.downloaded_at is not None
+
+
+def test_apply_backfills_missing_file_sizes(session, config, make_mapping, add_video):
+    mapping = make_mapping()
+    (Path(mapping.folder) / "old.mkv").write_text("y" * 500)
+    video = add_video(mapping, "a", status=VideoStatus.DONE, file_path="old.mkv")
+    assert video.file_size is None
+    organizer.apply(session, config.media_root, mapping, 180)
+    assert video.file_size == 500
+
+
+def test_backfill_uses_file_mtime_as_download_time(session, config, make_mapping, add_video):
+    import os
+    from datetime import datetime
+
+    mapping = make_mapping()
+    media = Path(mapping.folder) / "old.mkv"
+    media.write_text("y")
+    os.utime(media, (1767268800, 1767268800))  # 2026-01-01 12:00 UTC
+    video = add_video(mapping, "a", status=VideoStatus.DONE, file_path="old.mkv")
+    organizer.apply(session, config.media_root, mapping, 180)
+    assert video.downloaded_at == datetime(2026, 1, 1, 12, 0)

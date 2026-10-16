@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import JSON, ForeignKey, String, Text, UniqueConstraint, false
+from sqlalchemy import JSON, BigInteger, ForeignKey, String, Text, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -79,6 +79,8 @@ class Video(Base):
     attempts: Mapped[int] = mapped_column(default=0)
     next_retry_at: Mapped[datetime | None] = mapped_column(default=None)
     file_path: Mapped[str | None] = mapped_column(String(1000), default=None)
+    file_size: Mapped[int | None] = mapped_column(BigInteger, default=None)  # bytes of the media file
+    downloaded_at: Mapped[datetime | None] = mapped_column(default=None)
     added_at: Mapped[datetime] = mapped_column(default=utcnow)
     source: Mapped[str] = mapped_column(String(10), default="sync")
 

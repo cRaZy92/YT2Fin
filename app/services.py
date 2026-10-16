@@ -35,7 +35,9 @@ class MappingInput:
     overrides: dict[str, Any] = field(default_factory=dict)
 
 
-EMPTY_STATS: dict[str, int] = {s.value: 0 for s in VideoStatus} | {"total": 0}
+EMPTY_STATS: dict[str, Any] = {s.value: 0 for s in VideoStatus} | {
+    "total": 0, "size": 0, "runtime": 0, "seasons": 0, "last_download": None,
+}
 
 
 def max_len(session: Session) -> int:
@@ -245,8 +247,9 @@ def retry_video(session: Session, media_root: Path, video: Video) -> None:
     _apply(session, media_root, video.mapping)  # an unavailable video counts again, so numbers shift
 
 
-def mapping_stats(session: Session) -> dict[int, dict[str, int]]:
-    stats: dict[int, dict[str, int]] = {}
+def mapping_stats(session: Session) -> dict[int, dict[str, Any]]:
+    """Per mapping: counts by status, plus size, runtime and last download of downloaded videos."""
+    stats: dict[int, dict[str, Any]] = {}
     rows = session.execute(
         select(Video.mapping_id, Video.status, func.count()).group_by(Video.mapping_id, Video.status)
     )
@@ -254,4 +257,15 @@ def mapping_stats(session: Session) -> dict[int, dict[str, int]]:
         entry = stats.setdefault(mapping_id, dict(EMPTY_STATS))
         entry[status] = count
         entry["total"] += count
+    done = session.execute(
+        select(Video.mapping_id, func.sum(Video.file_size), func.sum(Video.duration), func.max(Video.downloaded_at))
+        .where(Video.status == VideoStatus.DONE).group_by(Video.mapping_id)
+    )
+    for mapping_id, size, runtime, last in done:
+        entry = stats.setdefault(mapping_id, dict(EMPTY_STATS))
+        entry.update(size=size or 0, runtime=runtime or 0, last_download=last)
+    breaks = dict(session.execute(select(SeasonBreak.mapping_id, func.count()).group_by(SeasonBreak.mapping_id)).all())
+    for mapping_id, mapping_type in session.execute(select(Mapping.id, Mapping.type)):
+        if mapping_type == MappingType.SHOW and mapping_id in stats:
+            stats[mapping_id]["seasons"] = 1 + breaks.get(mapping_id, 0)
     return stats

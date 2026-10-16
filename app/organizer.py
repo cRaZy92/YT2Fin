@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 import os
 import re
 import shutil
@@ -13,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app import descriptions, naming, nfo
 from app.models import Mapping, MappingType, Video, VideoStatus
+from app.timeutil import utcnow
 
 log = logging.getLogger(__name__)
 
@@ -168,8 +170,26 @@ def apply(session: Session, media_root: Path, mapping: Mapping, max_len: int) ->
             video.file_path = target_rel
         session.commit()
 
+    _backfill_sizes(session, folder, mapping)
     _write_metadata(folder, mapping)
     _remove_empty_dirs(folder)
+
+
+def _backfill_sizes(session: Session, folder: Path, mapping: Mapping) -> None:
+    """Files downloaded before sizes were recorded get size and download time (file mtime) filled in once."""
+    changed = False
+    for video in mapping.videos:
+        if video.status == VideoStatus.DONE and video.file_path and (video.file_size is None or video.downloaded_at is None):
+            media = folder / video.file_path
+            if media.is_file():
+                stat = media.stat()
+                if video.file_size is None:
+                    video.file_size = stat.st_size
+                if video.downloaded_at is None:
+                    video.downloaded_at = datetime.fromtimestamp(stat.st_mtime, UTC).replace(tzinfo=None)
+                changed = True
+    if changed:
+        session.commit()
 
 
 def _write_if_changed(path: Path, content: str) -> None:
@@ -245,6 +265,8 @@ def place(session: Session, media_root: Path, mapping: Mapping, video: Video,
         raise FileNotFoundError(f"Mapping folder {folder} is missing (is the media volume mounted?)")
     temp = folder / f".ytjs-new-{uuid.uuid4().hex}{staged_media.suffix}"
     shutil.move(staged_media, temp)
+    video.file_size = temp.stat().st_size
+    video.downloaded_at = utcnow()
     for extra in staged_extras:
         tail = extra.name[len(staged_media.stem):]
         if extra.suffix.lower() in THUMB_EXTS:

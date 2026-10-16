@@ -33,6 +33,13 @@ async def mapping_card(request: Request, mapping_id: int, session: SessionDep):
     })
 
 
+@router.get("/mappings/{mapping_id}/stats")
+async def mapping_stats(request: Request, mapping_id: int, session: SessionDep):
+    mapping = get_or_404(session, Mapping, mapping_id)
+    stats = services.mapping_stats(session).get(mapping_id, services.EMPTY_STATS)
+    return render(request, "partials/mapping_stats.html", {"mapping": mapping, "s": stats})
+
+
 @router.get("/activity")
 async def activity(request: Request):
     return render(request, "partials/activity.html", {"a": request.app.state.worker.snapshot()})

@@ -220,3 +220,23 @@ def test_description_settings_are_saved_and_validated(session, config):
     assert (mapping.description_mode, mapping.description_remove) == ("first_paragraph", "NordVPN\nRaid Shadow Legends")
     with pytest.raises(ServiceError):
         services.create_mapping(session, config.media_root, show_input(name="X", folder="x", description_mode="ai"))
+
+
+def test_mapping_stats_include_size_runtime_seasons_and_last_download(session, make_mapping, add_video):
+    from datetime import datetime
+
+    from app.models import SeasonBreak
+
+    mapping = make_mapping()
+    add_video(mapping, "a", status=VideoStatus.DONE, file_size=1000, duration=600,
+              downloaded_at=datetime(2026, 1, 1, 10, 0))
+    b = add_video(mapping, "b", status=VideoStatus.DONE, file_size=3000, duration=1200,
+                  downloaded_at=datetime(2026, 1, 2, 10, 0))
+    add_video(mapping, "c", duration=999)  # queued: not counted in size/runtime
+    mapping.season_breaks.append(SeasonBreak(video_id=b.id))
+    session.commit()
+    stats = services.mapping_stats(session)[mapping.id]
+    assert stats["size"] == 4000 and stats["runtime"] == 1800
+    assert stats["last_download"] == datetime(2026, 1, 2, 10, 0)
+    assert stats["seasons"] == 2 and stats["total"] == 3
+    assert services.EMPTY_STATS["size"] == 0 and services.EMPTY_STATS["seasons"] == 0

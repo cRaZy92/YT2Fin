@@ -25,6 +25,7 @@
     <a class="btn ghost" href="/mappings/{{ mapping.id }}/edit">Edit</a>
   </div>
 </div>
+{% include "partials/mapping_stats.html" %}
 <form class="panel add-video" hx-post="/mappings/{{ mapping.id }}/videos" hx-target="#video-list" hx-swap="outerHTML"
       hx-on::after-request="if (event.detail.successful) this.reset()">
   <input name="url" placeholder="Paste a YouTube video or playlist URL to add it here" required>

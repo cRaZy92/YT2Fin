@@ -39,4 +39,21 @@ def duration(seconds: float | None) -> str:
     return f"{hours}:{minutes:02d}:{secs:02d}" if hours else f"{minutes}:{secs:02d}"
 
 
-templates.env.filters.update(localtime=localtime, isoutc=isoutc, speed=speed, duration=duration)
+def filesize(num_bytes: float | None) -> str:
+    value = float(num_bytes or 0)
+    for unit in ("B", "KB", "MB", "GB"):
+        if value < 1024:
+            return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{value:.1f} TB"
+
+
+def runtime(seconds: float | None) -> str:
+    """Long durations for totals: "41 h 20 m", "5 m"."""
+    minutes = int(seconds or 0) // 60
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours} h {minutes} m" if hours else f"{minutes} m"
+
+
+templates.env.filters.update(localtime=localtime, isoutc=isoutc, speed=speed, duration=duration,
+                             filesize=filesize, runtime=runtime)

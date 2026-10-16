@@ -12,6 +12,9 @@
     {% if s.failed %}<span class="count failed">{{ s.failed }} failed</span>{% endif %}
     {% if s.unavailable %}<span class="count unavailable">{{ s.unavailable }} unavailable</span>{% endif %}
   </div>
+  <div class="card-stats muted">
+    {{ s.total }} video{{ "s" if s.total != 1 }} · {{ s.size|filesize }} · {{ s.runtime|runtime }}{% if s.seasons > 1 %} · {{ s.seasons }} seasons{% endif %}
+  </div>
   <footer class="card-foot">
     {% if m.playlist_url %}
       <span class="muted">Synced {{ m.last_synced_at|localtime }}</span>

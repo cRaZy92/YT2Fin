@@ -1,0 +1,12 @@
+<div class="stats-bar" id="mapping-stats-{{ mapping.id }}" hx-get="/mappings/{{ mapping.id }}/stats"
+     hx-trigger="sse:mapping-{{ mapping.id }}" hx-swap="outerHTML">
+  <div class="stat"><span class="stat-value">{{ s.total }}</span><span class="stat-label">videos</span></div>
+  <div class="stat"><span class="stat-value">{{ s.done }}</span><span class="stat-label">downloaded</span></div>
+  <div class="stat"><span class="stat-value">{{ s.pending + s.downloading }}</span><span class="stat-label">queued</span></div>
+  {% if s.failed %}<div class="stat failed"><span class="stat-value">{{ s.failed }}</span><span class="stat-label">failed</span></div>{% endif %}
+  {% if s.unavailable %}<div class="stat"><span class="stat-value">{{ s.unavailable }}</span><span class="stat-label">unavailable</span></div>{% endif %}
+  <div class="stat"><span class="stat-value">{{ s.size|filesize }}</span><span class="stat-label">on disk</span></div>
+  <div class="stat"><span class="stat-value">{{ s.runtime|runtime }}</span><span class="stat-label">runtime</span></div>
+  {% if mapping.type == "show" %}<div class="stat"><span class="stat-value">{{ s.seasons }}</span><span class="stat-label">season{{ "s" if s.seasons != 1 }}</span></div>{% endif %}
+  <div class="stat"><span class="stat-value">{{ s.last_download|localtime("%d.%m. %H:%M") if s.last_download else "never" }}</span><span class="stat-label">Last download</span></div>
+</div>

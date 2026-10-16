@@ -133,3 +133,12 @@ def test_activity_banner_shows_media_problem(client, config):
         assert "not writable" in client.get("/activity").text
     finally:
         config.media_root.chmod(0o755)
+
+
+def test_card_and_detail_show_stats(client, make_mapping, add_video):
+    mapping = make_mapping("Stats")
+    add_video(mapping, "a", status=VideoStatus.DONE, file_size=3 * 1024**3, duration=2 * 3600 + 5 * 60)
+    card = client.get(f"/mappings/{mapping.id}/card").text
+    assert "3.0 GB" in card and "2 h 5 m" in card
+    detail = client.get(f"/mappings/{mapping.id}").text
+    assert "3.0 GB" in detail and "2 h 5 m" in detail and "Last download" in detail

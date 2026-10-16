@@ -118,3 +118,9 @@ legend { font-weight: 600; padding: 0 6px; }
 .preview h3 { font-size: 1rem; margin: 16px 0 8px; }
 .desc-sample { border-top: 1px solid var(--border); padding: 8px 0; }
 .desc-sample pre { white-space: pre-wrap; font: inherit; font-size: .9em; margin: 6px 0; }
+.card-stats { font-size: .85em; }
+.stats-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.stat { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 14px; display: flex; flex-direction: column; min-width: 92px; }
+.stat-value { font-weight: 600; font-size: 1.05em; }
+.stat-label { font-size: .75em; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.stat.failed .stat-value { color: var(--err); }
