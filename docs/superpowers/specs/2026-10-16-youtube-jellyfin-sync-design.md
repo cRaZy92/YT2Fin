@@ -82,7 +82,7 @@ worker, sync, and UI all go through this one function.
 - `folder`: absolute path, must resolve under `/media`; unique across mappings
 - `playlist_url`: nullable (null = manual mapping)
 - `enabled`, `sync_interval_minutes` (nullable → global default), `last_synced_at`, `last_sync_error`
-- Show only: `show_title` (used in filenames and `tvshow.nfo`), optional poster image
+- Show only: `show_title` (used in filenames and `tvshow.nfo`)
 - Per-mapping setting overrides: JSON column (nullable keys fall back to global settings)
 
 **Video**
@@ -118,7 +118,7 @@ whitespace, trim trailing dots/spaces, cap length (default 180 chars before exte
 ```
 <folder>/
 ├── tvshow.nfo                 (title = show_title)
-├── poster.jpg                 (optional, user-supplied or first video's thumbnail)
+├── poster.jpg                 (copied from the first episode's thumbnail unless a poster.* already exists, so a user-placed poster wins)
 └── Season 01/
     ├── <Show> S01E01 <Title>.mkv
     ├── <Show> S01E01 <Title>.nfo          (episodedetails: title, plot, aired, season, episode)
@@ -158,8 +158,9 @@ regex list, bracketed or parenthesized). Keep `(feat. X)` / `(ft. X)`.
 - Videos missing from the playlist are left untouched (additive only).
 - Manual "Add video" (paste URL, single video or playlist) does the same with `source=manual`,
   for any mapping type.
-- Removing a video from a playlist-backed mapping asks "Also ignore (don't re-add on sync)?",
-  defaulting to yes. For a manual mapping, ignore is irrelevant.
+- Removing a video from a playlist-backed mapping always adds it to the ignored list (sync is
+  additive, so a non-ignored removal would simply come back); the confirm dialog says so and it can
+  be un-ignored from the mapping page. For a manual mapping, ignore is irrelevant.
 
 ## 7. Download worker
 
@@ -185,8 +186,9 @@ regex list, bracketed or parenthesized). Keep `(feat. X)` / `(ft. X)`.
   - *Rate-limit* → global cool-down (below): HTTP 429, "Sign in to confirm you're not a bot".
   - *Transient* (everything else) → `failed`, retried with backoff `[10m, 1h, 6h]` (configurable),
     then stays `failed` until a manual retry.
-- **yt-dlp self-update:** the entrypoint runs `pip install -U yt-dlp` before starting the app
-  (toggleable). The daily check (and the "check now" button in settings) installs any newer version,
+- **yt-dlp self-update:** the in-app scheduler runs `pip install -U yt-dlp` right after startup and
+  then every 24 h (toggleable; the toggle lives in the DB, so the entrypoint cannot own this). The
+  check (and the "check now" button in settings) installs any newer version,
   then waits until no download is active and exits with a restart code. The entrypoint loop
   restarts the app, which picks up the new library. The UI shows the current version and
   "update installed, restarting when idle".
@@ -261,8 +263,10 @@ matching fragments.
 
 ## 10. Deployment
 
-- `Dockerfile`: `python:3.12-slim` + `ffmpeg`. The app runs as `PUID:PGID` (entrypoint drops
-  privileges) so files are readable by Jellyfin.
+- `Dockerfile`: `python:3.12-slim` + `ffmpeg`. Python deps include `yt-dlp[default]` (pulls in
+  the `yt-dlp-ejs` scripts) and the `deno` PyPI package (ships the Deno binary into the venv's
+  `bin/`, which is on PATH). yt-dlp ≥ 2025.11 needs a JS runtime for full YouTube support. The app runs as
+  `PUID:PGID` (entrypoint drops privileges) so files are readable by Jellyfin.
 - Volumes: `/config`, `/media`.
 - Env: `PUID`, `PGID`, `TZ`, optional `AUTH_USER` + `AUTH_PASSWORD` (HTTP basic auth; no auth if
   unset), `PORT` (default 8080).
