@@ -22,6 +22,8 @@ def add_entries(session: Session, mapping: Mapping, entries: list[Entry], source
     existing = {v.youtube_id for v in mapping.videos}
     ignored = {i.youtube_id: i for i in mapping.ignored}
     next_position = max((v.position for v in mapping.videos), default=0) + 1
+    # Original numbers never shrink after deletes, so they stay unique per mapping.
+    next_original = max((v.original_position or 0 for v in mapping.videos), default=0) + 1
     added: list[Video] = []
     title_filter = (mapping.title_filter or "").casefold()
     for entry in entries:
@@ -34,12 +36,14 @@ def add_entries(session: Session, mapping: Mapping, entries: list[Entry], source
                 continue
             mapping.ignored.remove(ignored.pop(entry.youtube_id))
         video = Video(youtube_id=entry.youtube_id, yt_title=entry.title, channel=entry.channel,
-                      position=next_position, source=source, status=VideoStatus.PENDING)
+                      position=next_position, original_position=next_original, source=source,
+                      status=VideoStatus.PENDING)
         if mapping.type == MappingType.MUSIC_VIDEO:
             video.artist, video.song = parse_artist_song(entry.title, entry.channel)
         mapping.videos.append(video)
         existing.add(entry.youtube_id)
         next_position += 1
+        next_original += 1
         added.append(video)
     session.commit()
     return added

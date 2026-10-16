@@ -129,3 +129,9 @@ def test_saving_the_unchanged_youtube_title_keeps_it_automatic(client, session, 
     client.post(f"/videos/{video.id}/rename", data={"title": "Original"})
     session.expire_all()
     assert session.get(Video, video.id).custom_title is None
+
+
+def test_row_shows_original_order_number(client, make_mapping, add_video):
+    mapping = make_mapping()
+    add_video(mapping, "a", original_position=7)
+    assert 'title="Original order: 7"' in client.get(f"/mappings/{mapping.id}/list").text

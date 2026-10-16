@@ -114,3 +114,16 @@ def test_manual_add_ignores_the_title_filter(session, make_mapping):
     mapping = make_mapping(title_filter="photos")
     added = add_entries(session, mapping, [Entry("c1", "Cases With Twists")], "manual")
     assert [v.youtube_id for v in added] == ["c1"]
+
+
+def test_videos_keep_their_original_order_number(session, config, make_mapping):
+    from app import services
+
+    mapping = make_mapping()
+    added = add_entries(session, mapping, [Entry("a", "A"), Entry("b", "B"), Entry("c", "C")], "sync")
+    assert [v.original_position for v in added] == [1, 2, 3]
+    a, b, c = added
+    services.reorder(session, config.media_root, mapping, [c.id, a.id, b.id])
+    services.delete_video(session, config.media_root, a, ignore=False)
+    [d] = add_entries(session, mapping, [Entry("d", "D")], "manual")
+    assert {v.youtube_id: v.original_position for v in mapping.videos} == {"b": 2, "c": 3, "d": 4}

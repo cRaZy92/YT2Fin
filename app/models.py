@@ -67,6 +67,7 @@ class Video(Base):
     yt_artist: Mapped[str | None] = mapped_column(String(300), default=None)
     yt_track: Mapped[str | None] = mapped_column(String(300), default=None)
     position: Mapped[int] = mapped_column()
+    original_position: Mapped[int | None] = mapped_column(default=None)  # order when added; never changes
     custom_title: Mapped[str | None] = mapped_column(String(500), default=None)
     artist: Mapped[str | None] = mapped_column(String(300), default=None)
     song: Mapped[str | None] = mapped_column(String(500), default=None)

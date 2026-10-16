@@ -163,3 +163,25 @@ def test_startup_migration_and_backup_are_logged(config):
     app = create_app(config, start_background=False)
     lines = "\n".join(app.state.log_buffer.lines)
     assert "Backed up the database" in lines and "Migrating database" in lines
+
+
+def test_0004_backfills_original_position_from_insertion_order(tmp_path):
+    from alembic import command
+
+    engine = make_engine(tmp_path / "app.db")
+    config = db.alembic_config()
+    with db.migration_connection(engine) as conn:
+        config.attributes["connection"] = conn
+        command.upgrade(config, "0003")
+    with engine.begin() as conn:
+        conn.exec_driver_sql("INSERT INTO mappings (id, name, type, folder, enabled, overrides, created_at, include_shorts) "
+                             "VALUES (1, 'M', 'show', '/media/m', 1, '{}', '2026-01-01', 0), "
+                             "(2, 'N', 'show', '/media/n', 1, '{}', '2026-01-01', 0)")
+        for vid, mapping_id, yid, position in [(1, 1, "a", 3), (2, 1, "b", 1), (3, 2, "x", 1), (4, 1, "c", 2)]:
+            conn.exec_driver_sql(
+                "INSERT INTO videos (id, mapping_id, youtube_id, yt_title, position, user_edited, status, attempts, "
+                f"added_at, source) VALUES ({vid}, {mapping_id}, '{yid}', '', {position}, 0, 'done', 0, '2026-01-01', 'sync')")
+    init_db(engine)
+    with engine.connect() as conn:
+        rows = conn.exec_driver_sql("SELECT youtube_id, original_position FROM videos ORDER BY id").all()
+    assert rows == [("a", 1), ("b", 2), ("x", 1), ("c", 3)]

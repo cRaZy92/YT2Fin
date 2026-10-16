@@ -1,5 +1,5 @@
 <li class="video status-{{ v.status }}" id="video-{{ v.id }}" data-video-id="{{ v.id }}">
-  <span class="drag" title="Drag to reorder">⠿</span>
+  <span class="drag" title="Drag to reorder">⠿{% if v.original_position %}<span class="orig" title="Original order: {{ v.original_position }}">#{{ v.original_position }}</span>{% endif %}</span>
   <img class="thumb" loading="lazy" alt="" src="https://i.ytimg.com/vi/{{ v.youtube_id }}/mqdefault.jpg">
   <div class="meta">
     <div class="title">
