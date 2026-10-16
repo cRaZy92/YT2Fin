@@ -8,8 +8,12 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, File, Request, UploadFile
 from fastapi.responses import RedirectResponse
 
+from sqlalchemy import select
+
+from app import organizer
 from app import settings as settings_mod
 from app import updater as updater_mod
+from app.models import Mapping
 from app.settings import SettingsError
 from app.web.deps import SessionDep, render
 
@@ -66,11 +70,16 @@ async def save_settings(request: Request, session: SessionDep):
     raw = {key: form[key] for key in settings_mod.DEFAULTS if key in form and key not in settings_mod.BOOL_KEYS}
     for key in settings_mod.BOOL_KEYS:
         raw[key] = key in form
+    before = settings_mod.get_all(session)
     try:
-        settings_mod.set_many(session, raw)
+        after = settings_mod.set_many(session, raw)
     except SettingsError as exc:
         session.rollback()
         return _page(request, session, values={**settings_mod.get_all(session), **raw}, error=str(exc), status_code=400)
+    if after["max_filename_length"] != before["max_filename_length"]:
+        media_root = request.app.state.config.media_root
+        for mapping in session.scalars(select(Mapping)).all():
+            organizer.apply(session, media_root, mapping, after["max_filename_length"])
     request.app.state.worker.kick()
     return _redirect("Settings saved")
 

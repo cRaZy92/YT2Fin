@@ -66,3 +66,19 @@ def test_cookies_file_is_created_private_from_the_start(client, config, monkeypa
     finally:
         os.umask(old_umask)
     assert stat.S_IMODE(config.cookies_path.stat().st_mode) == 0o600
+
+
+def test_changing_max_filename_length_renames_existing_files(client, session, make_mapping, add_video):
+    from pathlib import Path
+
+    from app import organizer
+    from app.models import VideoStatus
+
+    mapping = make_mapping()
+    folder = Path(mapping.folder)
+    (folder / "a.mkv").write_text("x")
+    add_video(mapping, "a", title="T" * 150, status=VideoStatus.DONE, file_path="a.mkv")
+    organizer.apply(session, client.app.state.config.media_root, mapping, 180)
+    assert client.post("/settings", data={"max_filename_length": "60"}, follow_redirects=False).status_code == 303
+    names = [p.name for p in (folder / "Season 01").glob("*.mkv")]
+    assert len(names) == 1 and len(names[0].encode()) <= 60 + len(".mkv")
