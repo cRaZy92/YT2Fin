@@ -85,6 +85,9 @@ class _Logger:
         log.warning(msg)
 
     def error(self, msg: str) -> None:
+        if "does not have a shorts tab" in msg:  # expected for channels without Shorts; handled by the caller
+            log.info(msg)
+            return
         log.error(msg)
 
 

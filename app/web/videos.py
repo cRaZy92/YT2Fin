@@ -10,7 +10,7 @@ from app import settings as settings_mod
 from app.models import Mapping, MappingType, Video
 from app.services import ServiceError
 from app.web.deps import SessionDep, get_or_404, render
-from app.ytdlp_client import DownloadFailed
+from app.ytdlp_client import DownloadFailed, is_channel_url
 
 router = APIRouter()
 
@@ -49,7 +49,10 @@ def _media_root(request: Request) -> Path:
 @router.get("/mappings/{mapping_id}")
 async def detail(request: Request, mapping_id: int, session: SessionDep):
     mapping = get_or_404(session, Mapping, mapping_id)
-    context = list_context(session, mapping) | {"syncing": mapping_id in request.app.state.syncer.running}
+    context = list_context(session, mapping) | {
+        "syncing": mapping_id in request.app.state.syncer.running,
+        "is_channel": bool(mapping.playlist_url) and is_channel_url(mapping.playlist_url),
+    }
     return render(request, "mapping_detail.html", context)
 
 

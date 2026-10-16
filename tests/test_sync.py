@@ -43,7 +43,7 @@ def test_music_entries_get_parsed_artist_song(session, make_mapping):
 async def test_syncer_adds_videos_and_notifies(session, session_factory, config, notifier, fake_worker, make_mapping):
     mapping = make_mapping(playlist_url=URL)
     syncer = Syncer(session_factory, config, fake_worker, notifier,
-                    fetch=lambda url, opts, cookie: [Entry("a", "A"), Entry("b", "B")])
+                    fetch=lambda url, opts, cookie, include_shorts: [Entry("a", "A"), Entry("b", "B")])
     assert await syncer.sync(mapping.id) == 2
     session.expire_all()
     reloaded = session.get(Mapping, mapping.id)
@@ -57,7 +57,7 @@ async def test_syncer_records_failure_and_cools_down_on_rate_limit(session, sess
                                                                   fake_worker, make_mapping):
     mapping = make_mapping(playlist_url=URL)
 
-    def fetch(url, opts, cookie):
+    def fetch(url, opts, cookie, include_shorts):
         raise DownloadFailed(ErrorKind.RATE_LIMIT, "HTTP Error 429")
 
     syncer = Syncer(session_factory, config, fake_worker, notifier, fetch=fetch)
@@ -77,9 +77,25 @@ async def test_syncer_ignores_manual_mappings(session_factory, config, notifier,
 
 async def test_add_url(session, session_factory, config, notifier, fake_worker, make_mapping):
     mapping = make_mapping()
-    syncer = Syncer(session_factory, config, fake_worker, notifier, fetch=lambda url, opts, cookie: [Entry("v", "V")])
+    syncer = Syncer(session_factory, config, fake_worker, notifier, fetch=lambda url, opts, cookie, include_shorts: [Entry("v", "V")])
     assert await syncer.add_url(mapping.id, " https://youtu.be/v ") == 1
     session.expire_all()
     assert session.get(Mapping, mapping.id).videos[0].source == "manual"
     with pytest.raises(ServiceError):
         await syncer.add_url(mapping.id, "not a url")
+
+
+async def test_syncer_passes_include_shorts_to_fetch(session, session_factory, config, notifier, fake_worker,
+                                                   make_mapping):
+    mapping = make_mapping(playlist_url="https://www.youtube.com/@Chan", include_shorts=True)
+    seen = {}
+
+    def fetch(url, opts, cookie, include_shorts):
+        seen["args"] = (url, include_shorts)
+        return [Entry("a", "A")]
+
+    syncer = Syncer(session_factory, config, fake_worker, notifier, fetch=fetch)
+    assert await syncer.sync(mapping.id) == 1
+    assert seen["args"] == ("https://www.youtube.com/@Chan", True)
+    assert await syncer.add_url(mapping.id, "https://www.youtube.com/@Other") == 0
+    assert seen["args"] == ("https://www.youtube.com/@Other", True)

@@ -7,7 +7,8 @@
     <div class="muted">{{ "Show" if mapping.type == "show" else "Music videos" }} · <code>{{ mapping.folder }}</code></div>
     {% if mapping.playlist_url %}
     <div class="muted">
-      Playlist: <a href="{{ mapping.playlist_url }}" target="_blank" rel="noopener">{{ mapping.playlist_url }}</a>
+      {{ "Channel" if is_channel else "Playlist" }}: <a href="{{ mapping.playlist_url }}" target="_blank" rel="noopener">{{ mapping.playlist_url }}</a>
+      {% if is_channel %}({{ "including Shorts" if mapping.include_shorts else "without Shorts" }}){% endif %}
       · last sync {{ mapping.last_synced_at|localtime }}
       {% if mapping.last_sync_error %}· <span class="error-text">{{ mapping.last_sync_error }}</span>{% endif %}
     </div>

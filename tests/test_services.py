@@ -183,3 +183,12 @@ def test_delete_mapping_files_only_removes_what_the_app_owns(session, config, ad
     assert (folder / "my-own-movie.mkv").read_text() == "MINE"
     assert not (folder / "Season 01").exists()
     assert not (folder / "tvshow.nfo").exists()
+
+
+def test_include_shorts_is_saved(session, config):
+    mapping = services.create_mapping(session, config.media_root,
+                                      show_input(playlist_url="https://www.youtube.com/@Chan", include_shorts=True))
+    assert mapping.include_shorts is True
+    services.update_mapping(session, config.media_root, mapping,
+                            show_input(playlist_url="https://www.youtube.com/@Chan", include_shorts=False))
+    assert mapping.include_shorts is False

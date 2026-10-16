@@ -96,7 +96,7 @@ def test_retry_and_status(client, session, make_mapping, add_video):
 def test_add_url(client, app, config, make_mapping):
     mapping = make_mapping()
     app.state.syncer = Syncer(app.state.session_factory, config, FakeWorker(), FakeNotifier(),
-                              fetch=lambda url, opts, cookie: [Entry("new", "New video")])
+                              fetch=lambda url, opts, cookie, include_shorts: [Entry("new", "New video")])
     response = client.post(f"/mappings/{mapping.id}/videos", data={"url": "https://youtu.be/new"})
     assert response.status_code == 200 and "New video" in response.text and "Added 1 video" in response.text
     response = client.post(f"/mappings/{mapping.id}/videos", data={"url": "nope"})

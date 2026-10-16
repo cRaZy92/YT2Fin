@@ -43,7 +43,7 @@ def add_entries(session: Session, mapping: Mapping, entries: list[Entry], source
 
 
 class Syncer:
-    def __init__(self, session_factory, config, worker, notifier, fetch=ytdlp_client.fetch_entries) -> None:
+    def __init__(self, session_factory, config, worker, notifier, fetch=ytdlp_client.fetch_source_entries) -> None:
         self.session_factory = session_factory
         self.config = config
         self.worker = worker
@@ -59,13 +59,14 @@ class Syncer:
                 if mapping is None or not mapping.playlist_url:
                     return None
                 url = mapping.playlist_url
+                include_shorts = mapping.include_shorts
                 opts = settings_mod.resolve(session, mapping)
                 name = mapping.name
             self.running.add(mapping_id)
             self.notifier.sync_status(mapping_id, "Checking playlist…")
             log.info("Syncing %s", name)
             try:
-                entries = await asyncio.to_thread(self._fetch, url, opts, self.config.cookiefile())
+                entries = await asyncio.to_thread(self._fetch, url, opts, self.config.cookiefile(), include_shorts)
             except DownloadFailed as exc:
                 log.warning("Sync of %s failed: %s", name, exc.message)
                 self._record(mapping_id, exc.message)
@@ -110,8 +111,9 @@ class Syncer:
             if mapping is None:
                 raise ServiceError("Mapping not found")
             opts = settings_mod.resolve(session, mapping)
+            include_shorts = mapping.include_shorts
         try:
-            entries = await asyncio.to_thread(self._fetch, url, opts, self.config.cookiefile())
+            entries = await asyncio.to_thread(self._fetch, url, opts, self.config.cookiefile(), include_shorts)
         except DownloadFailed as exc:
             if exc.kind == ErrorKind.RATE_LIMIT:
                 self.worker.enter_cooldown(exc.message)

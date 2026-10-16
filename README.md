@@ -13,7 +13,9 @@ docker compose up -d --build
 ```
 
 Open http://localhost:8080 and create a mapping: pick a type, a folder inside `/media`, and optionally a
-playlist URL. Leave the URL empty for a manual list and paste video URLs on the mapping page.
+playlist or channel URL (`https://www.youtube.com/@name`). Leave it empty for a manual list and paste video URLs on the mapping page.
+A channel is downloaded completely, oldest upload first, so new uploads become the next episodes; tick
+"Include Shorts" to also take the channel's Shorts.
 
 | Variable | Default | Meaning |
 |---|---|---|

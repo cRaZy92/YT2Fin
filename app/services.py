@@ -27,6 +27,7 @@ class MappingInput:
     show_title: str | None = None
     enabled: bool = True
     sync_interval_minutes: int | None = None
+    include_shorts: bool = False
     overrides: dict[str, Any] = field(default_factory=dict)
 
 
@@ -82,6 +83,7 @@ def _assign(mapping: Mapping, data: MappingInput, overrides: dict[str, Any]) -> 
     mapping.show_title = ((data.show_title or "").strip() or mapping.name) if data.type == MappingType.SHOW else None
     mapping.enabled = data.enabled
     mapping.sync_interval_minutes = data.sync_interval_minutes
+    mapping.include_shorts = data.include_shorts
     mapping.overrides = overrides
 
 

@@ -30,10 +30,12 @@
     </span>
   </label>
   <div id="folder-picker"></div>
-  <label>YouTube playlist URL
-    <input name="playlist_url" value="{{ v.playlist_url or '' }}" placeholder="Leave empty for a manual list">
-    <small>Sync only adds new videos. Your order, names and removals are never overwritten.</small>
+  <label>YouTube playlist or channel URL
+    <input name="playlist_url" value="{{ v.playlist_url or '' }}" placeholder="https://www.youtube.com/@channel or a playlist link; leave empty for a manual list">
+    <small>Sync only adds new videos. Your order, names and removals are never overwritten.
+      A channel is downloaded completely, oldest upload first; new uploads become the next episodes.</small>
   </label>
+  <label class="check"><input type="checkbox" name="include_shorts" {{ "checked" if v.include_shorts }}> Include Shorts (channels only)</label>
   <label>Sync interval (minutes)
     <input name="sync_interval_minutes" value="{{ v.sync_interval_minutes }}" inputmode="numeric" placeholder="Global default: {{ globals.sync_interval_minutes }}">
   </label>

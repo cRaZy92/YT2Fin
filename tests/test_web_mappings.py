@@ -106,3 +106,15 @@ def test_folder_picker(client, config):
     assert client.get("/folders", params={"path": "missing"}).status_code == 404
     response = client.post("/folders", data={"path": "a", "new_folder_name": "new: one"})
     assert response.status_code == 200 and (config.media_root / "a" / "new one").is_dir()
+
+
+def test_channel_mapping_with_shorts_checkbox(client, app, session):
+    app.state.syncer = FakeSyncer()
+    page = client.get("/mappings/new").text
+    assert "playlist or channel" in page and 'name="include_shorts"' in page
+    client.post("/mappings", data=form(playlist_url="https://www.youtube.com/@Veritasium", include_shorts="on"),
+                follow_redirects=False)
+    mapping = session.scalars(select(Mapping)).one()
+    assert mapping.include_shorts is True
+    detail = client.get(f"/mappings/{mapping.id}").text
+    assert "Channel:" in detail and "including Shorts" in detail

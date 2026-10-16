@@ -195,3 +195,12 @@ def test_fetch_source_entries_playlist_keeps_playlist_order(monkeypatch):
     entries = ytdlp_client.fetch_source_entries("https://www.youtube.com/playlist?list=PL", opts_for(), None,
                                                 include_shorts=False)
     assert [e.youtube_id for e in entries] == ["b", "a"]
+
+
+def test_missing_shorts_tab_is_not_logged_as_an_error(caplog):
+    import logging
+
+    with caplog.at_level(logging.INFO, logger="yt_dlp"):
+        ytdlp_client._Logger().error("ERROR: [youtube:tab] @jawed: This channel does not have a shorts tab")
+        ytdlp_client._Logger().error("ERROR: real problem")
+    assert [r.levelname for r in caplog.records] == ["INFO", "ERROR"]
