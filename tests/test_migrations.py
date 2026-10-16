@@ -165,6 +165,22 @@ def test_startup_migration_and_backup_are_logged(config):
     assert "Backed up the database" in lines and "Migrating database" in lines
 
 
+def test_0007_adds_reverse_order_defaulting_to_false_for_existing_mappings(tmp_path):
+    from alembic import command
+
+    engine = make_engine(tmp_path / "app.db")
+    config = db.alembic_config()
+    with db.migration_connection(engine) as conn:
+        config.attributes["connection"] = conn
+        command.upgrade(config, "0006")
+    with engine.begin() as conn:
+        conn.exec_driver_sql("INSERT INTO mappings (id, name, type, folder, enabled, overrides, created_at, include_shorts) "
+                             "VALUES (1, 'M', 'show', '/media/m', 1, '{}', '2026-01-01', 0)")
+    init_db(engine)
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql("SELECT reverse_order FROM mappings").scalar() == 0
+
+
 def test_0004_backfills_original_position_from_insertion_order(tmp_path):
     from alembic import command
 

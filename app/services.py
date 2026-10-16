@@ -29,6 +29,7 @@ class MappingInput:
     enabled: bool = True
     sync_interval_minutes: int | None = None
     include_shorts: bool = False
+    reverse_order: bool = False
     title_filter: str | None = None
     description_mode: str = "cleaned"
     description_remove: str | None = None
@@ -108,6 +109,7 @@ def _assign(mapping: Mapping, data: MappingInput, overrides: dict[str, Any]) -> 
     mapping.enabled = data.enabled
     mapping.sync_interval_minutes = data.sync_interval_minutes
     mapping.include_shorts = data.include_shorts
+    mapping.reverse_order = data.reverse_order
     mapping.title_filter = (data.title_filter or "").strip() or None
     mapping.description_mode = data.description_mode
     mapping.description_remove = (data.description_remove or "").strip() or None

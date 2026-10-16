@@ -36,6 +36,9 @@
       A channel is downloaded completely, oldest upload first; new uploads become the next episodes.</small>
   </label>
   <label class="check"><input type="checkbox" name="include_shorts" {{ "checked" if v.include_shorts }}> Include Shorts (channels only)</label>
+  <label class="check"><input type="checkbox" name="reverse_order" {{ "checked" if v.reverse_order }}> Reverse playlist order
+    <small>For playlists listed newest first: episode 1 is the playlist's last video and new uploads become the next episodes.
+      Changing it only affects videos added from then on.</small></label>
   <label>Only titles containing
     <input name="title_filter" value="{{ v.title_filter or '' }}" placeholder="e.g. Photos With Disturbing Backstories (leave empty for all)">
     <small>Sync skips videos whose title doesn't contain this text (case-insensitive). Use one mapping per

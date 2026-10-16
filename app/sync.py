@@ -71,6 +71,7 @@ class Syncer:
                     return None
                 url = mapping.playlist_url
                 include_shorts = mapping.include_shorts
+                reverse = mapping.reverse_order
                 opts = settings_mod.resolve(session, mapping)
                 name = mapping.name
             self.running.add(mapping_id)
@@ -87,6 +88,8 @@ class Syncer:
                 return None
             finally:
                 self.running.discard(mapping_id)
+            if reverse:
+                entries.reverse()  # newest-first playlist: oldest first, so new uploads append at the end
             with self.session_factory() as session:
                 mapping = session.get(Mapping, mapping_id)
                 if mapping is None:

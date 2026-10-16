@@ -53,6 +53,20 @@ async def test_syncer_adds_videos_and_notifies(session, session_factory, config,
     assert notifier.calls[-2] == ("sync_status", (mapping.id, "2 new video(s)"))
 
 
+async def test_syncer_reverses_a_newest_first_playlist(session, session_factory, config, notifier, fake_worker,
+                                                       make_mapping):
+    mapping = make_mapping(playlist_url=URL, reverse_order=True)
+    playlist = [Entry("ep2", "Ep 2"), Entry("ep1", "Ep 1")]  # newest first
+    syncer = Syncer(session_factory, config, fake_worker, notifier,
+                    fetch=lambda url, opts, cookie, include_shorts: list(playlist))
+    await syncer.sync(mapping.id)
+    playlist[:0] = [Entry("ep4", "Ep 4"), Entry("ep3", "Ep 3")]  # two new uploads at the top
+    assert await syncer.sync(mapping.id) == 2
+    session.expire_all()
+    videos = session.get(Mapping, mapping.id).videos
+    assert [(v.youtube_id, v.position) for v in videos] == [("ep1", 1), ("ep2", 2), ("ep3", 3), ("ep4", 4)]
+
+
 async def test_syncer_records_failure_and_cools_down_on_rate_limit(session, session_factory, config, notifier,
                                                                   fake_worker, make_mapping):
     mapping = make_mapping(playlist_url=URL)

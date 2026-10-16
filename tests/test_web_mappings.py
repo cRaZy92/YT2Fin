@@ -136,6 +136,17 @@ def test_http_errors_are_plain_text_not_json(client):
     assert response.text == "Folder not found" and response.headers["content-type"].startswith("text/plain")
 
 
+def test_reverse_order_checkbox(client, app, session):
+    app.state.syncer = FakeSyncer()
+    assert 'name="reverse_order"' in client.get("/mappings/new").text
+    client.post("/mappings", data=form(playlist_url="https://www.youtube.com/playlist?list=PL1", reverse_order="on"),
+                follow_redirects=False)
+    mapping = session.scalars(select(Mapping)).one()
+    assert mapping.reverse_order is True
+    assert "checked" in client.get(f"/mappings/{mapping.id}/edit").text.split('name="reverse_order"')[1][:20]
+    assert "reversed" in client.get(f"/mappings/{mapping.id}").text
+
+
 def test_title_filter_field(client, app, session):
     app.state.syncer = FakeSyncer()
     assert 'name="title_filter"' in client.get("/mappings/new").text

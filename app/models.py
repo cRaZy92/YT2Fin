@@ -38,6 +38,7 @@ class Mapping(Base):
     last_sync_error: Mapped[str | None] = mapped_column(Text, default=None)
     show_title: Mapped[str | None] = mapped_column(String(300), default=None)
     include_shorts: Mapped[bool] = mapped_column(default=False, server_default=false())
+    reverse_order: Mapped[bool] = mapped_column(default=False, server_default=false())  # newest-first playlists
     title_filter: Mapped[str | None] = mapped_column(String(300), default=None)
     description_mode: Mapped[str] = mapped_column(String(20), default="cleaned", server_default="cleaned")
     description_remove: Mapped[str | None] = mapped_column(Text, default=None)  # extra "remove lines containing"

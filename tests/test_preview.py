@@ -55,6 +55,12 @@ async def test_preview_marks_filtered_videos_and_names_matches_in_order(fetched)
     assert result.rows[1].file_name is None
 
 
+async def test_preview_reverses_the_order_when_asked(fetched):
+    result = await preview.build_preview(show_input(reverse_order=True), dict(settings_mod.DEFAULTS), None)
+    assert [r.youtube_id for r in result.rows] == ["p4", "p3", "p2", "c1", "p1"]
+    assert result.rows[0].file_name.startswith("Season 01/EWU Photos S01E01 ")
+
+
 async def test_preview_shows_cleaned_descriptions_for_the_first_three_matches(fetched):
     result = await preview.build_preview(show_input(description_mode="cleaned"), dict(settings_mod.DEFAULTS), None)
     assert fetched["videos"] == ["p1", "p2", "p3"]

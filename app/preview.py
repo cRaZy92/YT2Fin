@@ -50,6 +50,8 @@ async def build_preview(data: MappingInput, settings: dict[str, Any], cookiefile
         entries = await asyncio.to_thread(fetch_source_entries, url, settings, cookiefile, data.include_shorts)
     except DownloadFailed as exc:
         raise ServiceError(f"YouTube said: {exc.message}") from exc
+    if data.reverse_order:
+        entries = entries[::-1]
 
     matched = [e for e in entries if title_matches(data.title_filter, e.title)]
     is_show = data.type == MappingType.SHOW
