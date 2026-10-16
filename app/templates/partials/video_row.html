@@ -1,0 +1,38 @@
+<li class="video status-{{ v.status }}" id="video-{{ v.id }}" data-video-id="{{ v.id }}">
+  <span class="drag" title="Drag to reorder">⠿</span>
+  <img class="thumb" loading="lazy" alt="" src="https://i.ytimg.com/vi/{{ v.youtube_id }}/mqdefault.jpg">
+  <div class="meta">
+    <div class="title">
+      {% if mapping.type == "show" %}
+        {% if v.id in codes %}<span class="code">{{ codes[v.id] }}</span>{% endif %}{{ v.display_title }}
+        {% if v.custom_title %}<span class="muted" title="YouTube title: {{ v.yt_title }}">(renamed)</span>{% endif %}
+      {% else %}
+        <strong>{{ v.artist or "?" }}</strong> — {{ v.song or v.yt_title }}
+      {% endif %}
+    </div>
+    <div class="filename" title="File name in Jellyfin">{{ previews.get(v.id, "not numbered (unavailable)") }}</div>
+    <a class="yt-link" href="https://youtu.be/{{ v.youtube_id }}" target="_blank" rel="noopener">youtu.be/{{ v.youtube_id }}</a>
+    {% if v.source == "manual" %}<span class="tag">manual</span>{% endif %}
+  </div>
+  <div class="status" hx-get="/videos/{{ v.id }}/status" hx-trigger="sse:video-{{ v.id }}">{% include "partials/video_status.html" %}</div>
+  <div class="row-actions">
+    <button class="btn small ghost" hx-get="/videos/{{ v.id }}/edit" hx-target="#video-{{ v.id }}" hx-swap="outerHTML">Edit</button>
+    {% if mapping.type == "show" and v.id != first_id %}
+      {% if v.id in breaks %}
+      <button class="btn small ghost" hx-post="/videos/{{ v.id }}/season" hx-vals='{"on": "0"}' hx-target="#video-list" hx-swap="outerHTML">Remove season break</button>
+      {% else %}
+      <button class="btn small ghost" hx-post="/videos/{{ v.id }}/season" hx-vals='{"on": "1"}' hx-target="#video-list" hx-swap="outerHTML">New season here</button>
+      {% endif %}
+    {% endif %}
+    {% if v.status in ("failed", "unavailable") %}
+    <button class="btn small" hx-post="/videos/{{ v.id }}/retry" hx-target="#video-list" hx-swap="outerHTML">Retry</button>
+    {% endif %}
+    {% if mapping.playlist_url %}
+    <button class="btn small danger" hx-post="/videos/{{ v.id }}/delete" hx-vals='{"ignore": "on"}' hx-target="#video-list" hx-swap="outerHTML"
+            hx-confirm="Delete this video{{ ' and its files' if v.file_path }}? Sync will not add it back.">Delete</button>
+    {% else %}
+    <button class="btn small danger" hx-post="/videos/{{ v.id }}/delete" hx-target="#video-list" hx-swap="outerHTML"
+            hx-confirm="Delete this video{{ ' and its files' if v.file_path }}?">Delete</button>
+    {% endif %}
+  </div>
+</li>

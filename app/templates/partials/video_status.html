@@ -1,0 +1,17 @@
+{% if v.status == "downloading" %}
+<div class="progress-wrap" sse-swap="progress-{{ v.id }}">
+  <div class="progress indeterminate"><div class="bar"></div></div>
+  <span class="progress-text">Starting…</span>
+</div>
+{% elif v.status == "done" %}
+<span class="badge done">Downloaded</span>
+{% elif v.status == "pending" %}
+<span class="badge pending">Queued</span>
+{% elif v.status == "failed" %}
+<span class="badge failed">Failed{% if v.attempts %} ×{{ v.attempts }}{% endif %}</span>
+{% if v.next_retry_at %}<span class="muted progress-text">retry in <span data-countdown="{{ v.next_retry_at|isoutc }}"></span></span>{% endif %}
+<div class="error-text" title="{{ v.error }}">{{ (v.error or "")|truncate(140) }}</div>
+{% elif v.status == "unavailable" %}
+<span class="badge unavailable">Unavailable</span>
+<div class="error-text" title="{{ v.error }}">{{ (v.error or "")|truncate(140) }}</div>
+{% endif %}

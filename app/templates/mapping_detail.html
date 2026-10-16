@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ mapping.name }} · YT → Jellyfin{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ mapping.name }}</h1>
+    <div class="muted">{{ "Show" if mapping.type == "show" else "Music videos" }} · <code>{{ mapping.folder }}</code></div>
+    {% if mapping.playlist_url %}
+    <div class="muted">
+      Playlist: <a href="{{ mapping.playlist_url }}" target="_blank" rel="noopener">{{ mapping.playlist_url }}</a>
+      · last sync {{ mapping.last_synced_at|localtime }}
+      {% if mapping.last_sync_error %}· <span class="error-text">{{ mapping.last_sync_error }}</span>{% endif %}
+    </div>
+    {% else %}
+    <div class="muted">Manual list (no playlist)</div>
+    {% endif %}
+  </div>
+  <div class="actions">
+    {% if mapping.playlist_url %}
+    <span class="sync-status muted" sse-swap="sync-{{ mapping.id }}">{% if syncing %}Checking playlist…{% endif %}</span>
+    <button class="btn" hx-post="/mappings/{{ mapping.id }}/sync" hx-swap="none">Sync now</button>
+    {% endif %}
+    <a class="btn ghost" href="/mappings/{{ mapping.id }}/edit">Edit</a>
+  </div>
+</div>
+<form class="panel add-video" hx-post="/mappings/{{ mapping.id }}/videos" hx-target="#video-list" hx-swap="outerHTML"
+      hx-on::after-request="if (event.detail.successful) this.reset()">
+  <input name="url" placeholder="Paste a YouTube video or playlist URL to add it here" required>
+  <button class="btn">Add</button>
+  <span class="htmx-indicator muted">Fetching…</span>
+</form>
+{% include "partials/video_list.html" %}
+{% if mapping.ignored %}
+<details class="panel">
+  <summary>Ignored videos ({{ mapping.ignored|length }})</summary>
+  <p class="muted">You removed these. Sync will not add them again.</p>
+  <ul class="ignored">
+    {% for item in mapping.ignored %}
+    <li>
+      <a href="https://youtu.be/{{ item.youtube_id }}" target="_blank" rel="noopener">{{ item.title or item.youtube_id }}</a>
+      <form method="post" action="/mappings/{{ mapping.id }}/ignored/{{ item.youtube_id }}/unignore" class="inline">
+        <button class="btn small ghost">Un-ignore</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</details>
+{% endif %}
+{% endblock %}

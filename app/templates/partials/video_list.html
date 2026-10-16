@@ -1,0 +1,14 @@
+<div id="video-list" hx-get="/mappings/{{ mapping.id }}/list" hx-trigger="sse:list-{{ mapping.id }}" hx-swap="outerHTML">
+  {% if error %}<div class="banner error">{{ error }}</div>{% endif %}
+  {% if notice %}<div class="banner info">{{ notice }}</div>{% endif %}
+  {% if videos %}
+  <ol class="videos" data-sortable="/mappings/{{ mapping.id }}/reorder">
+    {% for v in videos %}
+      {% if v.id in season_starts %}<li class="season-header">Season {{ season_starts[v.id] }}</li>{% endif %}
+      {% include "partials/video_row.html" %}
+    {% endfor %}
+  </ol>
+  {% else %}
+  <div class="empty">No videos yet. {{ "Run a sync or paste" if mapping.playlist_url else "Paste" }} a YouTube URL above.</div>
+  {% endif %}
+</div>

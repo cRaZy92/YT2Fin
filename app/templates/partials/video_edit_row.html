@@ -1,0 +1,14 @@
+<li class="video editing" id="video-{{ v.id }}" data-video-id="{{ v.id }}">
+  <form class="edit-form" hx-post="/videos/{{ v.id }}/rename" hx-target="#video-list" hx-swap="outerHTML">
+    {% if error %}<div class="banner error">{{ error }}</div>{% endif %}
+    {% if mapping.type == "show" %}
+      <label>Title <input name="title" value="{{ v.custom_title or '' }}" placeholder="{{ v.yt_title }}"></label>
+      <small class="muted">Leave empty to use the YouTube title.</small>
+    {% else %}
+      <label>Artist <input name="artist" value="{{ v.artist or '' }}"></label>
+      <label>Song <input name="song" value="{{ v.song or '' }}"></label>
+    {% endif %}
+    <button class="btn small">Save</button>
+    <button type="button" class="btn small ghost" hx-get="/videos/{{ v.id }}/row" hx-target="#video-{{ v.id }}" hx-swap="outerHTML">Cancel</button>
+  </form>
+</li>
