@@ -242,6 +242,30 @@ def collect_outputs(staging_dir: Path) -> tuple[Path | None, list[Path]]:
     return media, extras
 
 
+_STAGE_LABELS = {
+    "Merger": "Merging video and audio",
+    "ThumbnailsConvertor": "Converting thumbnail",
+    "SubtitlesConvertor": "Converting subtitles",
+    "EmbedSubtitle": "Embedding subtitles",
+    "VideoRemuxer": "Remuxing",
+    "VideoConvertor": "Converting video",
+    "Metadata": "Writing metadata",
+    "SponsorBlock": "Fetching SponsorBlock segments",
+    "ModifyChapters": "Applying SponsorBlock",
+    "FixupM3u8": "Fixing stream container",
+    "FixupM4a": "Fixing audio container",
+    "FixupDuplicateMoov": "Fixing video container",
+    "MoveFiles": "Finishing",
+}
+
+
+def stage_label(postprocessor: str | None) -> str | None:
+    """Human label for a yt-dlp postprocessor name ("FFmpegMetadata" -> "Writing metadata")."""
+    if not postprocessor:
+        return None
+    return _STAGE_LABELS.get(postprocessor.removeprefix("FFmpeg"), postprocessor)
+
+
 def _progress_event(d: dict[str, Any]) -> dict[str, Any]:
     total = d.get("total_bytes") or d.get("total_bytes_estimate")
     done = d.get("downloaded_bytes") or 0
@@ -269,7 +293,7 @@ def download(youtube_id: str, settings: dict[str, Any], staging_dir: Path, cooki
             raise Cancelled()
         if d.get("status") == "started":
             on_progress({"stage": "processing", "percent": None, "speed": None, "eta": None,
-                         "detail": d.get("postprocessor")})
+                         "detail": stage_label(d.get("postprocessor"))})
 
     opts = download_opts(settings, staging_dir, cookiefile, progress_hook, pp_hook)
     try:

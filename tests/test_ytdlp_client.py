@@ -220,3 +220,15 @@ def test_download_of_live_stream_reports_not_yet(fake_ydl, tmp_path, monkeypatch
     with pytest.raises(DownloadFailed) as exc:
         ytdlp_client.download("abc", opts_for(), tmp_path / "stage", None, lambda d: None, lambda: False)
     assert exc.value.kind == ErrorKind.NOT_YET
+
+
+@pytest.mark.parametrize("pp, label", [
+    ("Merger", "Merging video and audio"),
+    ("FFmpegThumbnailsConvertor", "Converting thumbnail"),
+    ("ThumbnailsConvertor", "Converting thumbnail"),
+    ("FFmpegMetadata", "Writing metadata"),
+    ("SomethingNew", "SomethingNew"),
+    (None, None),
+])
+def test_friendly_stage_labels(pp, label):
+    assert ytdlp_client.stage_label(pp) == label

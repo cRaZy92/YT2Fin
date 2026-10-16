@@ -3,5 +3,5 @@
 <span class="progress-text">{% if p.percent is not none %}{{ "%.1f"|format(p.percent) }}%{% else %}Downloading{% endif %}{% if p.speed %} · {{ p.speed|speed }}{% endif %}{% if p.eta %} · ETA {{ p.eta|duration }}{% endif %}</span>
 {% else %}
 <div class="progress indeterminate"><div class="bar"></div></div>
-<span class="progress-text">{{ "Processing" if p.stage == "processing" else "Starting" }}{% if p.detail %} · {{ p.detail }}{% endif %}…</span>
+<span class="progress-text">{% if p.detail %}{{ p.detail }}{% else %}{{ "Processing" if p.stage == "processing" else "Starting" }}{% endif %}…</span>
 {% endif %}
