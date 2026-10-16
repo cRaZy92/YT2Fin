@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Settings · YT → Jellyfin{% endblock %}
+{% block content %}
+{% macro select(name, label, help="") -%}
+<label>{{ label }}
+  <select name="{{ name }}">
+    {% for c in choices[name] %}<option value="{{ c }}" {{ "selected" if v[name]|string == c|string }}>{{ c }}</option>{% endfor %}
+  </select>
+  {% if help %}<small>{{ help }}</small>{% endif %}
+</label>
+{%- endmacro %}
+{% macro number(name, label, help="", step="1") -%}
+<label>{{ label }}
+  <input type="number" name="{{ name }}" value="{{ v[name] }}" step="{{ step }}" min="0">
+  {% if help %}<small>{{ help }}</small>{% endif %}
+</label>
+{%- endmacro %}
+{% macro text(name, label, help="") -%}
+<label>{{ label }}
+  <input name="{{ name }}" value="{{ v[name] }}">
+  {% if help %}<small>{{ help }}</small>{% endif %}
+</label>
+{%- endmacro %}
+{% macro check(name, label) -%}
+<label class="check"><input type="checkbox" name="{{ name }}" {{ "checked" if v[name] in (true, "on", "true") }}> {{ label }}</label>
+{%- endmacro %}
+<div class="page-head"><h1>Settings</h1></div>
+{% if notice %}<div class="banner info">{{ notice }}</div>{% endif %}
+{% if error %}<div class="banner error">{{ error }}</div>{% endif %}
+<form class="settings" method="post" action="/settings">
+  <fieldset><legend>Quality</legend>
+    <div class="grid">
+      {{ select("max_height", "Max resolution") }}
+      {{ select("container", "Container", "mkv is the most flexible; mp4 plays everywhere") }}
+      {{ select("vcodec", "Preferred video codec", "h264 for old TVs; falls back if unavailable") }}
+    </div>
+  </fieldset>
+  <fieldset><legend>Subtitles &amp; SponsorBlock</legend>
+    <div class="grid">
+      {{ select("subtitles", "Subtitles", "embed into the file, or save .srt next to it") }}
+      {{ text("subtitle_langs", "Subtitle languages", "comma separated, e.g. en,de") }}
+      {{ check("subtitle_auto", "Include auto-generated subtitles") }}
+      {{ select("sponsorblock", "SponsorBlock", "mark segments as chapters, or cut them out") }}
+      {{ text("sponsorblock_categories", "SponsorBlock categories") }}
+    </div>
+  </fieldset>
+  <fieldset><legend>Sync</legend>
+    <div class="grid">
+      {{ number("sync_interval_minutes", "Default sync interval (minutes)") }}
+      {{ number("sync_jitter_seconds", "Random pause between playlist checks (max seconds)") }}
+    </div>
+  </fieldset>
+  <fieldset><legend>Throttling (avoid YouTube bans)</legend>
+    <div class="grid">
+      {{ number("min_delay_seconds", "Delay between downloads: min (s)") }}
+      {{ number("max_delay_seconds", "Delay between downloads: max (s)") }}
+      {{ number("sleep_requests", "Pause between requests (s)", "", "0.1") }}
+      {{ number("sleep_interval", "yt-dlp sleep before each download: min (s)") }}
+      {{ number("max_sleep_interval", "yt-dlp sleep before each download: max (s)") }}
+      {{ number("ratelimit_kbps", "Download rate limit (KiB/s, 0 = unlimited)") }}
+      {{ number("concurrency", "Concurrent downloads") }}
+      {{ number("cooldown_minutes", "Cool-down after rate limit (minutes)", "doubles on repeated hits") }}
+      {{ number("cooldown_max_minutes", "Maximum cool-down (minutes)") }}
+    </div>
+  </fieldset>
+  <fieldset><legend>Retries &amp; naming</legend>
+    <div class="grid">
+      <label>Retry backoff (minutes)
+        <input name="retry_backoff_minutes" value="{{ v.retry_backoff_minutes|join(', ') if v.retry_backoff_minutes is not string else v.retry_backoff_minutes }}">
+        <small>wait before each automatic retry; after the last one a video stays failed</small>
+      </label>
+      {{ number("max_filename_length", "Max file name length") }}
+    </div>
+  </fieldset>
+  <fieldset><legend>yt-dlp</legend>
+    {{ check("ytdlp_auto_update", "Update yt-dlp automatically (at start and daily)") }}
+    <p class="muted">Running {{ ytdlp_running }} · installed {{ ytdlp_installed }}
+      {% if last_update %}· {{ last_update }} ({{ last_checked|localtime }}){% endif %}</p>
+  </fieldset>
+  <div class="actions"><button class="btn">Save settings</button></div>
+</form>
+<div class="panel">
+  <h2>yt-dlp update</h2>
+  <form method="post" action="/settings/ytdlp/update"><button class="btn ghost">Check for update now</button></form>
+</div>
+<div class="panel">
+  <h2>YouTube cookies</h2>
+  <p class="muted">Upload a Netscape-format <code>cookies.txt</code> (export it from a logged-in browser) to fix
+    age-restricted videos and "confirm you're not a bot" errors. Use a throwaway account.</p>
+  {% if cookies_present %}
+  <p>Cookies uploaded {{ cookies_mtime|localtime }}.</p>
+  <form method="post" action="/settings/cookies/delete"><button class="btn danger small">Remove cookies</button></form>
+  {% else %}
+  <p class="muted">No cookies uploaded.</p>
+  {% endif %}
+  <form method="post" action="/settings/cookies" enctype="multipart/form-data" class="row">
+    <input type="file" name="file" accept=".txt,text/plain" required>
+    <button class="btn">Upload</button>
+  </form>
+</div>
+{% endblock %}
