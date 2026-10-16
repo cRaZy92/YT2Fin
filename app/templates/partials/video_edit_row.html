@@ -2,13 +2,28 @@
   <form class="edit-form" hx-post="/videos/{{ v.id }}/rename" hx-target="#video-list" hx-swap="outerHTML">
     {% if error %}<div class="banner error">{{ error }}</div>{% endif %}
     {% if mapping.type == "show" %}
-      <label>Title <input name="title" value="{{ v.custom_title or '' }}" placeholder="{{ v.yt_title }}"></label>
-      <small class="muted">Leave empty to use the YouTube title.</small>
+      <label>Title
+        <input name="title" value="{{ v.display_title }}" autofocus
+               hx-get="/videos/{{ v.id }}/preview" hx-trigger="input changed delay:250ms" hx-include="closest form"
+               hx-target="#preview-{{ v.id }}" hx-swap="innerHTML">
+      </label>
     {% else %}
-      <label>Artist <input name="artist" value="{{ v.artist or '' }}"></label>
-      <label>Song <input name="song" value="{{ v.song or '' }}"></label>
+      <label>Artist
+        <input name="artist" value="{{ v.artist or '' }}" autofocus
+               hx-get="/videos/{{ v.id }}/preview" hx-trigger="input changed delay:250ms" hx-include="closest form"
+               hx-target="#preview-{{ v.id }}" hx-swap="innerHTML">
+      </label>
+      <label>Song
+        <input name="song" value="{{ v.song or '' }}"
+               hx-get="/videos/{{ v.id }}/preview" hx-trigger="input changed delay:250ms" hx-include="closest form"
+               hx-target="#preview-{{ v.id }}" hx-swap="innerHTML">
+      </label>
     {% endif %}
     <button class="btn small">Save</button>
     <button type="button" class="btn small ghost" hx-get="/videos/{{ v.id }}/row" hx-target="#video-{{ v.id }}" hx-swap="outerHTML">Cancel</button>
+    <div class="edit-preview">
+      <span class="muted">File name:</span> <code id="preview-{{ v.id }}">{{ preview }}</code>
+      {% if mapping.type == "show" %}<small class="muted">Clear the title to go back to the YouTube title.</small>{% endif %}
+    </div>
   </form>
 </li>

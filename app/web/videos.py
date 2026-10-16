@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 
 from app import naming, organizer, services
 from app import settings as settings_mod
@@ -34,6 +35,28 @@ def list_context(session, mapping: Mapping) -> dict:
         "breaks": {b.video_id for b in mapping.season_breaks},
         "first_id": videos[0].id if videos else None,
     }
+
+
+def preview_name(session, video: Video, *, title: str | None = None, artist: str | None = None,
+                 song: str | None = None) -> str:
+    """The file name the video would get with the given (unsaved) title or artist/song."""
+    mapping = video.mapping
+    values = settings_mod.resolve(session, mapping)
+    items = []
+    for item in organizer.naming_items(mapping):
+        if item.video_id == video.id:
+            item = replace(
+                item,
+                title=item.title if title is None else (title.strip() or video.yt_title or video.youtube_id),
+                artist=item.artist if artist is None else artist,
+                song=item.song if song is None else song,
+            )
+        items.append(item)
+    stems = naming.compute_stems(mapping.type, mapping.show_title or mapping.name, items, values["max_filename_length"])
+    if video.id not in stems:
+        return "not numbered (unavailable)"
+    ext = Path(video.file_path).suffix if video.file_path else f".{values['container']}"
+    return stems[video.id] + ext
 
 
 def _list(request: Request, session, mapping: Mapping, *, error: str | None = None,
@@ -109,7 +132,15 @@ async def row(request: Request, video_id: int, session: SessionDep):
 @router.get("/videos/{video_id}/edit")
 async def edit_row(request: Request, video_id: int, session: SessionDep):
     video = get_or_404(session, Video, video_id)
-    return render(request, "partials/video_edit_row.html", {"v": video, "mapping": video.mapping})
+    return render(request, "partials/video_edit_row.html",
+                  {"v": video, "mapping": video.mapping, "preview": preview_name(session, video)})
+
+
+@router.get("/videos/{video_id}/preview")
+async def preview(video_id: int, session: SessionDep, title: str | None = None, artist: str | None = None,
+                  song: str | None = None):
+    video = get_or_404(session, Video, video_id)
+    return PlainTextResponse(preview_name(session, video, title=title, artist=artist, song=song))
 
 
 @router.post("/videos/{video_id}/rename")
@@ -122,7 +153,8 @@ async def rename(request: Request, video_id: int, session: SessionDep):
     except ServiceError as exc:
         session.rollback()
         response = render(request, "partials/video_edit_row.html",
-                          {"v": video, "mapping": video.mapping, "error": str(exc)}, status_code=422)
+                          {"v": video, "mapping": video.mapping, "error": str(exc),
+                           "preview": preview_name(session, video)}, status_code=422)
         response.headers["HX-Retarget"] = f"#video-{video.id}"
         response.headers["HX-Reswap"] = "outerHTML"
         return response

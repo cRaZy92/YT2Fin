@@ -101,3 +101,31 @@ def test_add_url(client, app, config, make_mapping):
     assert response.status_code == 200 and "New video" in response.text and "Added 1 video" in response.text
     response = client.post(f"/mappings/{mapping.id}/videos", data={"url": "nope"})
     assert response.status_code == 422 and "Enter a YouTube" in response.text
+
+
+def test_edit_row_is_prefilled_with_current_title_and_filename(client, make_mapping, add_video):
+    mapping = make_mapping()
+    video = done(mapping, add_video, "a", "Photos With Disturbing Backstories | Episode 1")
+    page = client.get(f"/videos/{video.id}/edit").text
+    assert 'value="Photos With Disturbing Backstories | Episode 1"' in page
+    assert "Season 01/My Show S01E01 Photos With Disturbing Backstories   Episode 1.mkv" not in page  # sanitized
+    assert "Season 01/My Show S01E01 Photos With Disturbing Backstories Episode 1.mkv" in page
+
+
+def test_filename_preview_while_typing(client, make_mapping, add_video):
+    show = make_mapping()
+    video = done(show, add_video, "a", "Old")
+    response = client.get(f"/videos/{video.id}/preview", params={"title": "New: title"})
+    assert response.status_code == 200 and response.text.strip() == "Season 01/My Show S01E01 New title.mkv"
+    music = make_mapping("Music", type=MappingType.MUSIC_VIDEO)
+    mv = add_video(music, "m", artist="A", song="S")
+    response = client.get(f"/videos/{mv.id}/preview", params={"artist": "Queen", "song": "Innuendo"})
+    assert response.text.strip() == "Queen - Innuendo.mkv"
+
+
+def test_saving_the_unchanged_youtube_title_keeps_it_automatic(client, session, make_mapping, add_video):
+    mapping = make_mapping()
+    video = done(mapping, add_video, "a", "Original")
+    client.post(f"/videos/{video.id}/rename", data={"title": "Original"})
+    session.expire_all()
+    assert session.get(Video, video.id).custom_title is None

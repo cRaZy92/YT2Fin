@@ -108,3 +108,5 @@ legend { font-weight: 600; padding: 0 6px; }
   .video .thumb { display: none; }
   .video .status, .video .row-actions { grid-column: 1 / -1; }
 }
+.edit-preview { flex-basis: 100%; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: .85em; }
+.edit-preview code { font-family: ui-monospace, monospace; word-break: break-all; }

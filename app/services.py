@@ -189,7 +189,9 @@ def rename_video(session: Session, media_root: Path, video: Video, *, title: str
                  artist: str | None = None, song: str | None = None) -> None:
     mapping = video.mapping
     if mapping.type == MappingType.SHOW:
-        video.custom_title = (title or "").strip() or None
+        title = (title or "").strip()
+        # Same as the YouTube title (e.g. saved unchanged from the prefilled box) = not a custom title
+        video.custom_title = title if title and title != video.yt_title else None
     else:
         artist, song = (artist or "").strip(), (song or "").strip()
         if not artist or not song:
