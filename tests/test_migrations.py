@@ -136,3 +136,19 @@ def test_cli_upgrade_without_app_connection_records_the_revision(tmp_path):
     config.set_main_option("sqlalchemy.url", f"sqlite:///{tmp_path / 'cli.db'}")
     command.upgrade(config, "head")
     assert db.current_revision(make_engine(tmp_path / "cli.db")) == db.head_revision()
+
+
+def test_a_failing_migration_leaves_no_partial_schema_changes(tmp_path):
+    import pytest
+
+    engine = make_engine(tmp_path / "app.db")
+    init_db(engine)
+    with pytest.raises(RuntimeError):
+        with db.migration_connection(engine) as conn:
+            op = Operations(MigrationContext.configure(conn))
+            op.create_table("half_done", sa.Column("id", sa.Integer, primary_key=True))
+            with op.batch_alter_table("mappings") as batch:
+                batch.add_column(sa.Column("half_col", sa.Integer, nullable=True))
+            raise RuntimeError("migration blew up")
+    assert "half_done" not in tables(engine)
+    assert "half_col" not in {c["name"] for c in sa.inspect(engine).get_columns("mappings")}

@@ -73,10 +73,17 @@ def migration_connection(engine: Engine) -> Iterator[Connection]:
     with engine.connect() as conn:
         conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
         conn.commit()  # end SQLAlchemy's autobegun transaction so we can open our own
+        driver = conn.connection.driver_connection
+        isolation = driver.isolation_level
+        # Python's sqlite3 commits DDL immediately; take over transaction control and emit BEGIN
+        # ourselves so a failing migration rolls back completely (SQLite supports transactional DDL).
+        driver.isolation_level = None
         try:
             with conn.begin():
+                conn.exec_driver_sql("BEGIN")
                 yield conn
         finally:
+            driver.isolation_level = isolation
             conn.exec_driver_sql("PRAGMA foreign_keys=ON")
             conn.commit()
 
