@@ -101,3 +101,35 @@ class Clock:
 @pytest.fixture
 def clock() -> Clock:
     return Clock()
+
+
+class FakeWorker:
+    def __init__(self) -> None:
+        self.kicks = 0
+        self.cooldowns: list[str] = []
+        self.blocked = False
+        self.restart_pending = False
+        self.cancelled: list[int] = []
+        self.cancelled_mappings: list[int] = []
+        self.paused = False
+        self.cooldown_until = None
+
+    def kick(self) -> None:
+        self.kicks += 1
+
+    def enter_cooldown(self, reason: str) -> None:
+        self.cooldowns.append(reason)
+
+    def is_blocked(self) -> bool:
+        return self.blocked
+
+    def cancel(self, video_id: int) -> None:
+        self.cancelled.append(video_id)
+
+    def cancel_mapping(self, mapping_id: int) -> None:
+        self.cancelled_mappings.append(mapping_id)
+
+
+@pytest.fixture
+def fake_worker() -> FakeWorker:
+    return FakeWorker()
