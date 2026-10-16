@@ -1,0 +1,36 @@
+# Pinned runtime dependencies for the Docker image (regenerate: scripts/lock-deps.sh).
+# yt-dlp and yt-dlp-ejs are intentionally NOT pinned: they are installed fresh and self-update.
+alembic==1.20.0
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.15.1
+brotli==1.2.0
+certifi==2026.7.22
+charset-normalizer==3.5.2
+click==8.5.0
+deno==2.9.7
+fastapi==0.143.3
+h11==0.16.0
+httptools==0.9.0
+idna==3.20
+jinja2==3.1.6
+mako==1.4.3
+markupsafe==3.0.4
+mutagen==1.48.1
+opentelemetry-api==1.45.1
+pycryptodomex==3.24.1
+pydantic==2.14.1
+pydantic-core==2.50.1
+python-dotenv==1.2.4
+python-multipart==0.0.32
+pyyaml==6.0.3
+requests==2.34.2
+sqlalchemy==2.1.4
+starlette==1.8.0
+typing-extensions==4.16.0
+typing-inspection==0.4.4
+urllib3==2.8.0
+uvicorn==0.54.0
+uvloop==0.23.0
+watchfiles==1.3.0
+websockets==17.2

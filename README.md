@@ -55,6 +55,12 @@ uv venv --python 3.12 .venv && uv pip install --python .venv -e '.[dev]'
 MEDIA_ROOT=./media CONFIG_DIR=./config .venv/bin/python -m app
 ```
 
+### Dependencies
+
+Runtime dependencies are pinned in `requirements.lock`, which the Docker image installs. yt-dlp is
+deliberately left unpinned because it must keep up with YouTube. To update the pins, run
+`scripts/lock-deps.sh`.
+
 ### Database migrations
 
 The schema is managed by Alembic (`app/migrations/`). The app migrates itself on startup.

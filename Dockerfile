@@ -14,9 +14,13 @@ RUN apt-get update \
 
 RUN python -m venv /opt/venv
 WORKDIR /app
-COPY pyproject.toml ./
+COPY pyproject.toml requirements.lock ./
 COPY app ./app
-RUN pip install . && deno --version
+# Pinned dependencies first, then the app itself, then the current yt-dlp (deliberately unpinned).
+RUN pip install -r requirements.lock \
+    && pip install --no-deps . \
+    && pip install "yt-dlp[default]" \
+    && deno --version
 
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
