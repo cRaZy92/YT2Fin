@@ -105,3 +105,39 @@ def test_place_does_not_clobber_sibling_holding_the_target_name(session, config,
     assert (folder / "Rick - Never Gonna.mkv").read_text() == "RETRIED"
     assert (folder / "Rick - Never Gonna (2).mkv").read_text() == "SIBLING"
     assert retried.file_path == "Rick - Never Gonna.mkv"
+
+
+def test_reconcile_leaves_mapping_alone_when_its_folder_is_missing(session, config, make_mapping, add_video):
+    import shutil as _shutil
+
+    mapping = make_mapping()
+    video = add_video(mapping, "d", status=VideoStatus.DONE, file_path="Season 01/x.mkv")
+    _shutil.rmtree(mapping.folder)  # e.g. the NAS share is not mounted
+    organizer.reconcile(session, config.media_root, config.staging_dir, 180)
+    session.expire_all()
+    reloaded = session.get(Video, video.id)
+    assert reloaded.status == VideoStatus.DONE and reloaded.file_path == "Season 01/x.mkv"
+    assert not Path(mapping.folder).exists()
+
+
+def test_apply_does_not_recreate_missing_folder(session, config, make_mapping):
+    import shutil as _shutil
+
+    mapping = make_mapping()
+    _shutil.rmtree(mapping.folder)
+    organizer.apply(session, config.media_root, mapping, 180)
+    assert not Path(mapping.folder).exists()
+
+
+def test_place_fails_when_mapping_folder_missing(session, config, make_mapping, add_video, tmp_path):
+    import shutil as _shutil
+
+    import pytest
+
+    mapping = make_mapping()
+    video = add_video(mapping, "a", status=VideoStatus.DOWNLOADING)
+    _shutil.rmtree(mapping.folder)
+    [media] = staged(tmp_path, {"media.mkv": "M"})
+    with pytest.raises(FileNotFoundError, match="mounted"):
+        organizer.place(session, config.media_root, mapping, video, media, [], 180)
+    assert not Path(mapping.folder).exists()

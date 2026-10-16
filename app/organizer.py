@@ -103,7 +103,10 @@ def _group_moves(folder: Path, current: Path, target_rel: str) -> list[tuple[Pat
 
 def apply(session: Session, media_root: Path, mapping: Mapping, max_len: int) -> None:
     folder = mapping_dir(media_root, mapping)
-    folder.mkdir(parents=True, exist_ok=True)
+    if not folder.is_dir():
+        # Never recreate it here: a missing folder usually means an unmounted media volume.
+        log.warning("Mapping folder %s is missing; not organizing (is the media volume mounted?)", folder)
+        return
     stems = target_stems(mapping, max_len)
 
     plans: list[tuple[Video, str, list[tuple[Path, Path]]]] = []
@@ -250,6 +253,11 @@ def reconcile(session: Session, media_root: Path, staging_dir: Path, max_len: in
             folder = mapping_dir(media_root, mapping)
         except PathError:
             log.error("Mapping %s has an invalid folder %s", mapping.name, mapping.folder)
+            continue
+        if not folder.is_dir():
+            # Don't re-queue the whole library onto an empty mount point.
+            log.error("Folder %s of mapping %s is missing; leaving it untouched (is the media volume mounted?)",
+                      folder, mapping.name)
             continue
         for video in mapping.videos:
             if video.status == VideoStatus.DONE and (not video.file_path or not (folder / video.file_path).exists()):
