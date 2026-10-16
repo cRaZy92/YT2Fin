@@ -8,6 +8,7 @@ import shutil
 import uuid
 from pathlib import Path
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import naming, nfo
@@ -192,3 +193,66 @@ def _remove_empty_dirs(folder: Path) -> None:
     for path in sorted((p for p in folder.rglob("*") if p.is_dir()), key=lambda p: len(p.parts), reverse=True):
         if not any(path.iterdir()):
             path.rmdir()
+
+
+def place(session: Session, media_root: Path, mapping: Mapping, video: Video,
+          staged_media: Path, staged_extras: list[Path], max_len: int) -> None:
+    """Move a finished download from staging into the library under its target name."""
+    folder = mapping_dir(media_root, mapping)
+    if video.file_path:
+        old = folder / video.file_path
+        for path in [*companion_files(old), old]:
+            path.unlink(missing_ok=True)
+    video.status = VideoStatus.DONE
+    stem = target_stems(mapping, max_len)[video.id]
+    target = folder / f"{stem}{staged_media.suffix}"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(staged_media, target)
+    for extra in staged_extras:
+        tail = extra.name[len(staged_media.stem):]
+        if extra.suffix.lower() in THUMB_EXTS:
+            tail = "-thumb" + extra.suffix.lower()
+        shutil.move(extra, target.with_name(target.stem + tail))
+    video.file_path = target.relative_to(folder).as_posix()
+    session.commit()
+    apply(session, media_root, mapping, max_len)
+
+
+def delete_video_files(media_root: Path, mapping: Mapping, video: Video) -> None:
+    if not video.file_path:
+        return
+    media = mapping_dir(media_root, mapping) / video.file_path
+    for path in [*companion_files(media), media]:
+        path.unlink(missing_ok=True)
+
+
+def delete_mapping_folder(media_root: Path, mapping_folder: str) -> None:
+    folder = ensure_under_root(media_root, mapping_folder)
+    if folder.exists():
+        shutil.rmtree(folder)
+
+
+def reconcile(session: Session, media_root: Path, staging_dir: Path, max_len: int) -> None:
+    """Startup repair: clean staging, requeue interrupted/missing downloads, re-apply naming."""
+    if staging_dir.exists():
+        shutil.rmtree(staging_dir)
+    staging_dir.mkdir(parents=True, exist_ok=True)
+    for video in session.scalars(select(Video).where(Video.status == VideoStatus.DOWNLOADING)).all():
+        video.status = VideoStatus.PENDING
+    session.commit()
+    for mapping in session.scalars(select(Mapping)).all():
+        try:
+            folder = mapping_dir(media_root, mapping)
+        except PathError:
+            log.error("Mapping %s has an invalid folder %s", mapping.name, mapping.folder)
+            continue
+        for video in mapping.videos:
+            if video.status == VideoStatus.DONE and (not video.file_path or not (folder / video.file_path).exists()):
+                log.warning("File for %s is missing; re-queuing download", video.youtube_id)
+                video.status = VideoStatus.PENDING
+                video.file_path = None
+        session.commit()
+        try:
+            apply(session, media_root, mapping, max_len)
+        except OSError:
+            log.exception("Failed to organize mapping %s", mapping.name)

@@ -1,0 +1,77 @@
+from pathlib import Path
+
+from app import organizer
+from app.models import Video, VideoStatus
+
+
+def staged(tmp_path: Path, names: dict[str, str]) -> list[Path]:
+    stage = tmp_path / "stage"
+    stage.mkdir(exist_ok=True)
+    paths = []
+    for name, content in names.items():
+        p = stage / name
+        p.write_text(content)
+        paths.append(p)
+    return paths
+
+
+def test_place_moves_media_thumb_and_subs(session, config, make_mapping, add_video, tmp_path):
+    mapping = make_mapping()
+    video = add_video(mapping, "a", title="Hello", status=VideoStatus.DOWNLOADING)
+    media, thumb, subs = staged(tmp_path, {"media.mkv": "M", "media.jpg": "T", "media.en.srt": "S"})
+    organizer.place(session, config.media_root, mapping, video, media, [thumb, subs], 180)
+    season = Path(mapping.folder) / "Season 01"
+    assert (season / "My Show S01E01 Hello.mkv").read_text() == "M"
+    assert (season / "My Show S01E01 Hello-thumb.jpg").read_text() == "T"
+    assert (season / "My Show S01E01 Hello.en.srt").read_text() == "S"
+    assert (season / "My Show S01E01 Hello.nfo").exists()
+    assert video.status == VideoStatus.DONE
+    assert video.file_path == "Season 01/My Show S01E01 Hello.mkv"
+
+
+def test_place_replaces_previous_download(session, config, make_mapping, add_video, tmp_path):
+    mapping = make_mapping()
+    folder = Path(mapping.folder)
+    old = folder / "old.mp4"
+    old.write_text("OLD")
+    (folder / "old-thumb.jpg").write_text("OLDTHUMB")
+    video = add_video(mapping, "a", title="Hello", status=VideoStatus.DOWNLOADING, file_path="old.mp4")
+    [media] = staged(tmp_path, {"media.mkv": "NEW"})
+    organizer.place(session, config.media_root, mapping, video, media, [], 180)
+    assert not old.exists() and not (folder / "old-thumb.jpg").exists()
+    assert (folder / "Season 01" / "My Show S01E01 Hello.mkv").read_text() == "NEW"
+
+
+def test_delete_video_files(session, config, make_mapping, add_video, tmp_path):
+    mapping = make_mapping()
+    video = add_video(mapping, "a", title="Hello", status=VideoStatus.DOWNLOADING)
+    media, thumb = staged(tmp_path, {"media.mkv": "M", "media.jpg": "T"})
+    organizer.place(session, config.media_root, mapping, video, media, [thumb], 180)
+    organizer.delete_video_files(config.media_root, mapping, video)
+    season = Path(mapping.folder) / "Season 01"
+    assert not season.exists() or list(season.iterdir()) == []
+
+
+def test_delete_mapping_folder_refuses_outside_root(config, tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    try:
+        organizer.delete_mapping_folder(config.media_root, str(outside))
+    except organizer.PathError:
+        pass
+    assert outside.exists()
+
+
+def test_reconcile(session, config, make_mapping, add_video):
+    mapping = make_mapping()
+    downloading = add_video(mapping, "d", status=VideoStatus.DOWNLOADING)
+    missing = add_video(mapping, "m", status=VideoStatus.DONE, file_path="gone.mkv")
+    leftover = config.staging_dir / "5" / "media.mkv.part"
+    leftover.parent.mkdir(parents=True)
+    leftover.write_text("x")
+    organizer.reconcile(session, config.media_root, config.staging_dir, 180)
+    session.expire_all()
+    assert session.get(Video, downloading.id).status == VideoStatus.PENDING
+    reloaded = session.get(Video, missing.id)
+    assert reloaded.status == VideoStatus.PENDING and reloaded.file_path is None
+    assert config.staging_dir.exists() and list(config.staging_dir.iterdir()) == []
