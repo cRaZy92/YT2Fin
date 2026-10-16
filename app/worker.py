@@ -26,6 +26,9 @@ from app.ytdlp_client import Cancelled, DownloadFailed, VideoInfo
 log = logging.getLogger(__name__)
 
 
+UPCOMING_RECHECK = timedelta(minutes=60)
+
+
 def backoff_delay(attempts: int, schedule: list[int]) -> timedelta | None:
     if attempts < 1 or attempts > len(schedule):
         return None
@@ -123,7 +126,8 @@ class Worker:
             Mapping.enabled.is_(True),
             Video.id.not_in(list(self.active)),
             or_(
-                Video.status == VideoStatus.PENDING,
+                and_(Video.status == VideoStatus.PENDING,
+                     or_(Video.next_retry_at.is_(None), Video.next_retry_at <= now)),
                 and_(Video.status == VideoStatus.FAILED, Video.next_retry_at.is_not(None), Video.next_retry_at <= now),
             ),
         )
@@ -301,6 +305,10 @@ class Worker:
             video.error = err.message
             if err.kind == ErrorKind.RATE_LIMIT:
                 video.status = VideoStatus.PENDING
+                video.next_retry_at = None
+            elif err.kind == ErrorKind.NOT_YET:
+                video.status = VideoStatus.PENDING
+                video.next_retry_at = self._now() + UPCOMING_RECHECK
             elif err.kind == ErrorKind.PERMANENT:
                 video.status = VideoStatus.UNAVAILABLE
                 video.next_retry_at = None

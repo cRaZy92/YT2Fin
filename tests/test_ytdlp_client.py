@@ -204,3 +204,19 @@ def test_missing_shorts_tab_is_not_logged_as_an_error(caplog):
         ytdlp_client._Logger().error("ERROR: [youtube:tab] @jawed: This channel does not have a shorts tab")
         ytdlp_client._Logger().error("ERROR: real problem")
     assert [r.levelname for r in caplog.records] == ["INFO", "ERROR"]
+
+
+def test_download_opts_skip_streams_that_are_live_right_now(tmp_path):
+    opts = ytdlp_client.download_opts(opts_for(), tmp_path, None, lambda d: None, lambda d: None)
+    assert opts["match_filter"]({"is_live": True}, incomplete=False)  # a message = skip
+    assert opts["match_filter"]({"is_live": False}, incomplete=False) is None
+
+
+def test_download_of_live_stream_reports_not_yet(fake_ydl, tmp_path, monkeypatch):
+    def live_extract(self, url, download):
+        return {"id": "abc", "title": "Live", "live_status": "is_live"}
+
+    monkeypatch.setattr(FakeYDL, "extract_info", live_extract)
+    with pytest.raises(DownloadFailed) as exc:
+        ytdlp_client.download("abc", opts_for(), tmp_path / "stage", None, lambda d: None, lambda: False)
+    assert exc.value.kind == ErrorKind.NOT_YET

@@ -5,6 +5,10 @@
 </div>
 {% elif v.status == "done" %}
 <span class="badge done">Downloaded</span>
+{% elif v.status == "pending" and v.next_retry_at %}
+<span class="badge pending">Upcoming</span>
+<span class="muted progress-text">check again in <span data-countdown="{{ v.next_retry_at|isoutc }}"></span></span>
+<div class="muted progress-text" title="{{ v.error }}">{{ (v.error or "")|truncate(140) }}</div>
 {% elif v.status == "pending" %}
 <span class="badge pending">Queued</span>
 {% elif v.status == "failed" %}

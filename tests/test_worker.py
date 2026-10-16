@@ -238,3 +238,27 @@ async def test_queue_takes_turns_between_mappings(session, session_factory, conf
         assert worker.step() == 0.0
         await worker.drain()
     assert order == ["b1", "s1", "b2", "s2", "b3"]
+
+
+async def test_upcoming_premiere_waits_without_using_retries(session, session_factory, config, notifier, clock,
+                                                            make_mapping, add_video):
+    video = add_video(make_mapping(), "a")
+    worker = make_worker(session_factory, config, notifier, clock, failing(ErrorKind.NOT_YET, "Premieres in 3 hours"))
+    worker.step()
+    await worker.drain()
+    upcoming = reload(session, video)
+    assert upcoming.status == VideoStatus.PENDING and upcoming.attempts == 0
+    assert upcoming.error == "Premieres in 3 hours"
+    assert upcoming.next_retry_at == clock.now + timedelta(minutes=60)
+    clock.advance(minutes=5)
+    assert worker.step() > 0 and not worker.active
+    clock.advance(minutes=60)
+    worker._download = ok_download()
+    assert worker.step() == 0.0
+    await worker.drain()
+    assert reload(session, video).status == VideoStatus.DONE
+
+
+def test_upcoming_status_badge(client, make_mapping, add_video, clock):
+    video = add_video(make_mapping(), "a", error="Premieres in 3 hours", next_retry_at=clock.now)
+    assert "Upcoming" in client.get(f"/videos/{video.id}/status").text

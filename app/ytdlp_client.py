@@ -131,6 +131,11 @@ def common_opts(settings: dict[str, Any], cookiefile: Path | None) -> dict[str, 
     return opts
 
 
+def _skip_live(info: dict[str, Any], *, incomplete: bool) -> str | None:
+    """yt-dlp match filter: never record a stream that is live right now."""
+    return "Stream is live right now" if info.get("is_live") else None
+
+
 def download_opts(settings: dict[str, Any], staging_dir: Path, cookiefile: Path | None,
                   progress_hook: Callable[[dict], None], pp_hook: Callable[[dict], None]) -> dict[str, Any]:
     container = settings["container"]
@@ -143,6 +148,7 @@ def download_opts(settings: dict[str, Any], staging_dir: Path, cookiefile: Path 
         "noplaylist": True,
         "progress_hooks": [progress_hook],
         "postprocessor_hooks": [pp_hook],
+        "match_filter": _skip_live,
     })
     if settings["ratelimit_kbps"]:
         opts["ratelimit"] = settings["ratelimit_kbps"] * 1024
@@ -279,5 +285,7 @@ def download(youtube_id: str, settings: dict[str, Any], staging_dir: Path, cooki
         raise Cancelled()
     media, extras = collect_outputs(staging_dir)
     if media is None:
+        if (info or {}).get("live_status") in ("is_live", "is_upcoming"):
+            raise DownloadFailed(ErrorKind.NOT_YET, "Stream is live right now; it will be downloaded after it ends")
         raise DownloadFailed(ErrorKind.TRANSIENT, "Download finished but no media file was produced")
     return VideoInfo.from_info(info), media, extras
