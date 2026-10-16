@@ -192,3 +192,13 @@ def test_include_shorts_is_saved(session, config):
     services.update_mapping(session, config.media_root, mapping,
                             show_input(playlist_url="https://www.youtube.com/@Chan", include_shorts=False))
     assert mapping.include_shorts is False
+
+
+def test_create_mapping_reports_unwritable_media_root(session, config):
+    config.media_root.chmod(0o555)
+    try:
+        with pytest.raises(ServiceError, match="not writable"):
+            services.create_mapping(session, config.media_root, show_input(folder="Videos/Show"))
+    finally:
+        config.media_root.chmod(0o755)
+    assert session.scalars(select(Mapping)).all() == []

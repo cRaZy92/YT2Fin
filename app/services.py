@@ -1,6 +1,7 @@
 """Mapping/video mutations. Each mutation updates the DB, then lets the organizer fix the disk."""
 from __future__ import annotations
 
+import os
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -55,6 +56,22 @@ def resolve_folder(media_root: Path, folder: str) -> Path:
         raise ServiceError(str(exc)) from exc
 
 
+def _folder_error(folder: Path, exc: OSError) -> ServiceError:
+    if isinstance(exc, PermissionError):
+        return ServiceError(
+            f"Cannot create {folder}: the media folder is not writable by user {os.getuid()}:{os.getgid()}. "
+            "Make the media folder owned by (or writable for) that user, or change PUID/PGID."
+        )
+    return ServiceError(f"Cannot create {folder}: {exc.strerror or exc}")
+
+
+def _make_dir(folder: Path) -> None:
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise _folder_error(folder, exc) from exc
+
+
 def _nested(a: Path, b: Path) -> bool:
     return a == b or a in b.parents or b in a.parents
 
@@ -91,7 +108,7 @@ def create_mapping(session: Session, media_root: Path, data: MappingInput) -> Ma
     overrides = _validate(data)
     folder = resolve_folder(media_root, data.folder)
     _check_overlap(session, folder)
-    folder.mkdir(parents=True, exist_ok=True)
+    _make_dir(folder)
     mapping = Mapping(type=data.type, folder=str(folder))
     _assign(mapping, data, overrides)
     session.add(mapping)
@@ -112,13 +129,16 @@ def update_mapping(session: Session, media_root: Path, mapping: Mapping, data: M
             raise ServiceError("The new folder cannot be inside the old one (or the other way round)")
         if folder.exists() and any(folder.iterdir()):
             raise ServiceError("The new folder already exists and is not empty")
-        folder.parent.mkdir(parents=True, exist_ok=True)
-        if folder.exists():
-            folder.rmdir()
-        if old.exists():
-            shutil.move(str(old), str(folder))
-        else:
-            folder.mkdir(parents=True)
+        try:
+            folder.parent.mkdir(parents=True, exist_ok=True)
+            if folder.exists():
+                folder.rmdir()
+            if old.exists():
+                shutil.move(str(old), str(folder))
+            else:
+                folder.mkdir(parents=True)
+        except OSError as exc:
+            raise _folder_error(folder, exc) from exc
         mapping.folder = str(folder)
     _assign(mapping, data, overrides)
     session.commit()

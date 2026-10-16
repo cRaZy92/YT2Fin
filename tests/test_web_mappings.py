@@ -118,3 +118,13 @@ def test_channel_mapping_with_shorts_checkbox(client, app, session):
     assert mapping.include_shorts is True
     detail = client.get(f"/mappings/{mapping.id}").text
     assert "Channel:" in detail and "including Shorts" in detail
+
+
+def test_create_mapping_on_unwritable_media_shows_form_error(client, app, config):
+    app.state.syncer = FakeSyncer()
+    config.media_root.chmod(0o555)
+    try:
+        response = client.post("/mappings", data=form(folder="Videos/EWU"))
+    finally:
+        config.media_root.chmod(0o755)
+    assert response.status_code == 400 and "not writable" in response.text
