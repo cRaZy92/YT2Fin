@@ -14,7 +14,7 @@
     <a class="yt-link" href="https://youtu.be/{{ v.youtube_id }}" target="_blank" rel="noopener">youtu.be/{{ v.youtube_id }}</a>
     {% if v.source == "manual" %}<span class="tag">manual</span>{% endif %}
   </div>
-  <div class="status" hx-get="/videos/{{ v.id }}/status" hx-trigger="sse:video-{{ v.id }}">{% include "partials/video_status.html" %}</div>
+  <div class="status" hx-get="/videos/{{ v.id }}/status" hx-trigger="sse:video-{{ v.id }}" hx-swap="innerHTML">{% include "partials/video_status.html" %}</div>
   <div class="row-actions">
     <button class="btn small ghost" hx-get="/videos/{{ v.id }}/edit" hx-target="#video-{{ v.id }}" hx-swap="outerHTML">Edit</button>
     {% if mapping.type == "show" and v.id != first_id %}

@@ -15,7 +15,7 @@
   <footer class="card-foot">
     {% if m.playlist_url %}
       <span class="muted">Synced {{ m.last_synced_at|localtime }}</span>
-      <span class="sync-status muted" sse-swap="sync-{{ m.id }}">{% if m.id in syncing %}Checking playlist…{% elif m.last_sync_error %}<span class="error-text">Last sync failed</span>{% endif %}</span>
+      <span class="sync-status muted" sse-swap="sync-{{ m.id }}" hx-swap="innerHTML">{% if m.id in syncing %}Checking playlist…{% elif m.last_sync_error %}<span class="error-text">Last sync failed</span>{% endif %}</span>
       <button class="btn small push-right" hx-post="/mappings/{{ m.id }}/sync" hx-swap="none">Sync now</button>
     {% else %}
       <span class="muted">Manual list</span>

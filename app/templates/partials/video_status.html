@@ -1,5 +1,5 @@
 {% if v.status == "downloading" %}
-<div class="progress-wrap" sse-swap="progress-{{ v.id }}">
+<div class="progress-wrap" sse-swap="progress-{{ v.id }}" hx-swap="innerHTML">
   <div class="progress indeterminate"><div class="bar"></div></div>
   <span class="progress-text">Starting…</span>
 </div>

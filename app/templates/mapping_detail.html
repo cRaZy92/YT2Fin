@@ -18,7 +18,7 @@
   </div>
   <div class="actions">
     {% if mapping.playlist_url %}
-    <span class="sync-status muted" sse-swap="sync-{{ mapping.id }}">{% if syncing %}Checking playlist…{% endif %}</span>
+    <span class="sync-status muted" sse-swap="sync-{{ mapping.id }}" hx-swap="innerHTML">{% if syncing %}Checking playlist…{% endif %}</span>
     <button class="btn" hx-post="/mappings/{{ mapping.id }}/sync" hx-swap="none">Sync now</button>
     {% endif %}
     <a class="btn ghost" href="/mappings/{{ mapping.id }}/edit">Edit</a>

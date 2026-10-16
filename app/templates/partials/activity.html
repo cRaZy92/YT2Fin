@@ -26,6 +26,6 @@
 {% for item in a.active %}
 <div class="activity-item">
   <div class="activity-title"><a href="/mappings/{{ item.mapping_id }}">{{ item.mapping_name }}</a> · {{ item.title }}</div>
-  <div class="progress-wrap" sse-swap="progress-{{ item.video_id }}">{% with p = item %}{% include "partials/progress.html" %}{% endwith %}</div>
+  <div class="progress-wrap" sse-swap="progress-{{ item.video_id }}" hx-swap="innerHTML">{% with p = item %}{% include "partials/progress.html" %}{% endwith %}</div>
 </div>
 {% endfor %}
