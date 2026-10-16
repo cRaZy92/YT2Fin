@@ -197,23 +197,28 @@ def _remove_empty_dirs(folder: Path) -> None:
 
 def place(session: Session, media_root: Path, mapping: Mapping, video: Video,
           staged_media: Path, staged_extras: list[Path], max_len: int) -> None:
-    """Move a finished download from staging into the library under its target name."""
+    """Move a finished download into the library.
+
+    The files land under a unique hidden temp name first; apply() then renames them to the
+    target name with its collision checks, so a foreign file or a sibling that still holds
+    the name is never overwritten.
+    """
     folder = mapping_dir(media_root, mapping)
+    if not folder.is_dir():
+        raise FileNotFoundError(f"Mapping folder {folder} is missing (is the media volume mounted?)")
+    temp = folder / f".ytjs-new-{uuid.uuid4().hex}{staged_media.suffix}"
+    shutil.move(staged_media, temp)
+    for extra in staged_extras:
+        tail = extra.name[len(staged_media.stem):]
+        if extra.suffix.lower() in THUMB_EXTS:
+            tail = "-thumb" + extra.suffix.lower()
+        shutil.move(extra, temp.with_name(temp.stem + tail))
     if video.file_path:
         old = folder / video.file_path
         for path in [*companion_files(old), old]:
             path.unlink(missing_ok=True)
     video.status = VideoStatus.DONE
-    stem = target_stems(mapping, max_len)[video.id]
-    target = folder / f"{stem}{staged_media.suffix}"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(staged_media, target)
-    for extra in staged_extras:
-        tail = extra.name[len(staged_media.stem):]
-        if extra.suffix.lower() in THUMB_EXTS:
-            tail = "-thumb" + extra.suffix.lower()
-        shutil.move(extra, target.with_name(target.stem + tail))
-    video.file_path = target.relative_to(folder).as_posix()
+    video.file_path = temp.relative_to(folder).as_posix()
     session.commit()
     apply(session, media_root, mapping, max_len)
 

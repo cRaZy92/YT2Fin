@@ -75,3 +75,33 @@ def test_reconcile(session, config, make_mapping, add_video):
     reloaded = session.get(Video, missing.id)
     assert reloaded.status == VideoStatus.PENDING and reloaded.file_path is None
     assert config.staging_dir.exists() and list(config.staging_dir.iterdir()) == []
+
+
+def test_place_never_overwrites_foreign_file(session, config, make_mapping, add_video, tmp_path):
+    from app.models import MappingType
+
+    mapping = make_mapping("Music", type=MappingType.MUSIC_VIDEO)
+    foreign = Path(mapping.folder) / "X - Y.mkv"
+    foreign.write_text("FOREIGN")
+    video = add_video(mapping, "a", artist="X", song="Y", status=VideoStatus.DOWNLOADING)
+    [media] = staged(tmp_path, {"media.mkv": "NEW"})
+    organizer.place(session, config.media_root, mapping, video, media, [], 180)
+    assert foreign.read_text() == "FOREIGN"
+    assert video.status == VideoStatus.DONE
+    assert (Path(mapping.folder) / video.file_path).read_text() == "NEW"
+
+
+def test_place_does_not_clobber_sibling_holding_the_target_name(session, config, make_mapping, add_video, tmp_path):
+    from app.models import MappingType
+
+    mapping = make_mapping("Music", type=MappingType.MUSIC_VIDEO)
+    folder = Path(mapping.folder)
+    retried = add_video(mapping, "p", artist="Rick", song="Never Gonna", status=VideoStatus.DOWNLOADING)
+    (folder / "Rick - Never Gonna.mkv").write_text("SIBLING")
+    add_video(mapping, "d", artist="Rick", song="Never Gonna", status=VideoStatus.DONE,
+              file_path="Rick - Never Gonna.mkv")
+    [media] = staged(tmp_path, {"media.mkv": "RETRIED"})
+    organizer.place(session, config.media_root, mapping, retried, media, [], 180)
+    assert (folder / "Rick - Never Gonna.mkv").read_text() == "RETRIED"
+    assert (folder / "Rick - Never Gonna (2).mkv").read_text() == "SIBLING"
+    assert retried.file_path == "Rick - Never Gonna.mkv"
