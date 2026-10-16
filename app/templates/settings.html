@@ -59,6 +59,7 @@
       {{ number("max_sleep_interval", "yt-dlp sleep before each download: max (s)") }}
       {{ number("ratelimit_kbps", "Download rate limit (KiB/s, 0 = unlimited)") }}
       {{ number("concurrency", "Concurrent downloads") }}
+      {{ number("min_free_gb", "Pause downloads below free space (GB)", "0 turns the check off") }}
       {{ number("cooldown_minutes", "Cool-down after rate limit (minutes)", "doubles on repeated hits") }}
       {{ number("cooldown_max_minutes", "Maximum cool-down (minutes)") }}
     </div>

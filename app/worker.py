@@ -141,8 +141,13 @@ class Worker:
             paused=self.paused, cooldown_until=self.cooldown_until, cooldown_reason=self.cooldown_reason,
             next_download_at=self.next_download_at, active=list(self.active.values()), queued=queued,
             restart_pending=self.restart_pending,
-            media_problem=organizer.media_problem(self.config.media_root),
+            media_problem=self._media_problem(),
         )
+
+    def _media_problem(self) -> str | None:
+        with self.session_factory() as session:
+            min_free_gb = settings_mod.get_all(session)["min_free_gb"]
+        return organizer.media_problem(self.config.media_root, min_free_gb)
 
     def publish_activity(self) -> None:
         self.notifier.activity(self.snapshot())
@@ -187,7 +192,7 @@ class Worker:
             if self.cooldown_until is not None:
                 return max(1.0, min((self.cooldown_until - now).total_seconds(), self.POLL_SECONDS))
             return self.POLL_SECONDS
-        if organizer.media_problem(self.config.media_root):
+        if self._media_problem():
             return self.POLL_SECONDS
         if self.next_download_at is not None and now < self.next_download_at:
             return min((self.next_download_at - now).total_seconds(), self.POLL_SECONDS)

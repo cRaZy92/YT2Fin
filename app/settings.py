@@ -29,6 +29,7 @@ DEFAULTS: dict[str, Any] = {
     "max_sleep_interval": 0,
     "ratelimit_kbps": 0,
     "concurrency": 1,
+    "min_free_gb": 5,
     "cooldown_minutes": 60,
     "cooldown_max_minutes": 720,
     # retries

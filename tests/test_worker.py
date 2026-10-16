@@ -262,3 +262,23 @@ async def test_upcoming_premiere_waits_without_using_retries(session, session_fa
 def test_upcoming_status_badge(client, make_mapping, add_video, clock):
     video = add_video(make_mapping(), "a", error="Premieres in 3 hours", next_retry_at=clock.now)
     assert "Upcoming" in client.get(f"/videos/{video.id}/status").text
+
+
+async def test_worker_pauses_when_disk_space_is_low(session, session_factory, config, notifier, clock, make_mapping,
+                                                    add_video, monkeypatch):
+    import shutil as _shutil
+
+    from app import settings as settings_mod
+
+    add_video(make_mapping(), "a")
+    settings_mod.set_many(session, {"min_free_gb": "5"})
+    usage = _shutil.disk_usage(config.media_root)
+    monkeypatch.setattr("app.organizer.shutil.disk_usage",
+                        lambda path: usage._replace(free=2 * 1024**3))
+    worker = make_worker(session_factory, config, notifier, clock, ok_download())
+    assert worker.step() == Worker.POLL_SECONDS and not worker.active
+    assert "Low disk space" in worker.snapshot().media_problem
+    settings_mod.set_many(session, {"min_free_gb": "0"})  # 0 disables the check
+    assert worker.snapshot().media_problem is None
+    assert worker.step() == 0.0
+    await worker.drain()

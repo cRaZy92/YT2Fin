@@ -26,13 +26,18 @@ class PathError(ValueError):
     pass
 
 
-def media_problem(media_root: Path) -> str | None:
+def media_problem(media_root: Path, min_free_gb: float = 0) -> str | None:
     """Why the media folder can't be used right now, or None when it's fine."""
     if not media_root.is_dir():
         return f"Media folder {media_root} does not exist (is the volume mounted?)"
     if not os.access(media_root, os.W_OK | os.X_OK):
         return (f"Media folder {media_root} is not writable by user {os.getuid()}:{os.getgid()}. "
                 "Fix its owner/permissions or set PUID/PGID to its owner. Downloads are paused until then.")
+    if min_free_gb:
+        free_gb = shutil.disk_usage(media_root).free / 1024**3
+        if free_gb < min_free_gb:
+            return (f"Low disk space: {free_gb:.1f} GB free on {media_root} (minimum {min_free_gb:g} GB). "
+                    "Downloads are paused until space is freed or the limit is lowered in Settings.")
     return None
 
 
