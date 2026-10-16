@@ -103,13 +103,13 @@ def request_restart(app: FastAPI) -> None:
 def create_app(config: AppConfig | None = None, *, start_background: bool = True) -> FastAPI:
     config = config or load_config()
     config.config_dir.mkdir(parents=True, exist_ok=True)
+    log_buffer = LogBuffer()
+    setup_logging(config, log_buffer)  # before migrating, so migrations and backups are logged
     engine = make_engine(config.db_path)
     init_db(engine, config.config_dir / "backups")
     session_factory = make_session_factory(engine)
     bus = EventBus()
     notifier = Notifier(bus, templates.env)
-    log_buffer = LogBuffer()
-    setup_logging(config, log_buffer)
     log_buffer.listener = notifier.log_line
     worker = Worker(session_factory, config, notifier)
     syncer = Syncer(session_factory, config, worker, notifier)

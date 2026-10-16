@@ -152,3 +152,14 @@ def test_a_failing_migration_leaves_no_partial_schema_changes(tmp_path):
             raise RuntimeError("migration blew up")
     assert "half_done" not in tables(engine)
     assert "half_col" not in {c["name"] for c in sa.inspect(engine).get_columns("mappings")}
+
+
+def test_startup_migration_and_backup_are_logged(config):
+    from app.main import create_app
+
+    engine = make_engine(config.db_path)
+    make_legacy_database(engine)
+    engine.dispose()
+    app = create_app(config, start_background=False)
+    lines = "\n".join(app.state.log_buffer.lines)
+    assert "Backed up the database" in lines and "Migrating database" in lines
