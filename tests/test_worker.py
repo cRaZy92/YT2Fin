@@ -60,7 +60,7 @@ async def test_downloads_pending_video_then_throttles(session, session_factory, 
     assert done.status == VideoStatus.DONE
     assert (Path(mapping.folder) / done.file_path).read_text() == "video a"
     assert done.file_path == "Season 01/My Show S01E01 Title a.mkv"
-    assert 30 <= (worker.next_download_at - clock.now).total_seconds() <= 90
+    assert 60 <= (worker.next_download_at - clock.now).total_seconds() <= 180
     assert "progress" in notifier.names() and "video_changed" in notifier.names()
     assert not (config.staging_dir / str(video.id)).exists()
 
@@ -118,7 +118,7 @@ async def test_rate_limit_enters_doubling_cooldown(session, session_factory, con
     worker.resume()
     assert not worker.is_blocked()
     worker._download = ok_download()
-    clock.advance(minutes=2)
+    clock.advance(minutes=4)  # past the max delay between downloads
     worker.step()
     await worker.drain()
     assert worker.cooldown_level == 0

@@ -7,7 +7,7 @@ from app.settings import SettingsError
 def test_get_all_returns_defaults(session):
     values = settings.get_all(session)
     assert values["max_height"] == 1080
-    assert values["min_delay_seconds"] == 30
+    assert values["min_delay_seconds"] == 60 and values["max_delay_seconds"] == 180
     assert values["retry_backoff_minutes"] == [10, 60, 360]
 
 
@@ -44,8 +44,8 @@ def test_resolve_applies_only_overridable_non_empty(session, make_mapping):
     session.commit()
     values = settings.resolve(session, mapping)
     assert values["max_height"] == 480
-    assert values["container"] == "mkv"
-    assert values["min_delay_seconds"] == 30
+    assert values["min_delay_seconds"] == settings.DEFAULTS["min_delay_seconds"]  # not overridable
+    assert values["min_delay_seconds"] == 60 and values["max_delay_seconds"] == 180
 
 
 def test_coerce_overrides_drops_inherit_values():

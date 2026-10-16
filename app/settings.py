@@ -22,8 +22,8 @@ DEFAULTS: dict[str, Any] = {
     "sync_interval_minutes": 360,
     "sync_jitter_seconds": 300,
     # throttling
-    "min_delay_seconds": 30,
-    "max_delay_seconds": 90,
+    "min_delay_seconds": 60,
+    "max_delay_seconds": 180,
     "sleep_requests": 1.0,
     "sleep_interval": 0,
     "max_sleep_interval": 0,

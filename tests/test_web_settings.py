@@ -26,7 +26,7 @@ def test_save_settings_validation_error(client, session):
     response = client.post("/settings", data={"min_delay_seconds": "100", "max_delay_seconds": "10"})
     assert response.status_code == 400 and "Minimum delay" in response.text
     assert 'value="100"' in response.text
-    assert settings_mod.get_all(session)["min_delay_seconds"] == 30
+    assert settings_mod.get_all(session)["min_delay_seconds"] == settings_mod.DEFAULTS["min_delay_seconds"]
 
 
 def test_cookies_upload_and_delete(client, config):
