@@ -28,6 +28,24 @@ of a channel (e.g. one mapping per "| Episode N" series, each in its own show fo
 Volumes: `/config` (database, cookies, logs) and `/media`: the folder your Jellyfin libraries point at.
 The service only writes files there; it never talks to Jellyfin itself.
 
+## Deploy on Dokploy
+
+1. Push this repository to a Git provider Dokploy can reach (GitHub, GitLab, Gitea, Bitbucket).
+2. In Dokploy: **Create Service → Compose**, choose that repository, compose path `./docker-compose.yml`.
+3. **Environment** tab: paste the variables from `.env.example` and adjust them:
+   - `HOST_PORT=3230`: the host port the UI is published on.
+   - `CONFIG_PATH=../files/config`: Dokploy's persistent files folder. Don't use a path inside the repo,
+     because Dokploy re-clones the repository on every deploy.
+   - `MEDIA_PATH`: the absolute server path your Jellyfin libraries point at.
+   - `PUID`/`PGID`: the owner of that folder (`stat -c '%u %g' <MEDIA_PATH>`).
+   - `AUTH_USER`/`AUTH_PASSWORD`: set them if the port is reachable from outside your LAN.
+4. **Deploy**, then open `http://<server>:3230`. The UI is published straight on the port, so no Dokploy
+   domain is needed. If you'd rather use a domain with HTTPS, add one under **Domains** pointing at
+   container port `8080`.
+
+The database is backed up to `CONFIG_PATH/backups/` before every schema migration. Back up `CONFIG_PATH`
+itself too: it holds your mappings, order and renames.
+
 ## Jellyfin setup
 
 1. Create a **Shows** library pointing at the folder that holds your show mappings
