@@ -26,6 +26,17 @@
     });
   }
 
+  // A live refresh replaces the whole list; hold it while the user is dragging or editing a row,
+  // and catch up as soon as they finish.
+  let dragging = false;
+
+  function refreshIfStale() {
+    const list = document.getElementById("video-list");
+    if (!list || !list.dataset.stale || dragging || list.querySelector(".editing")) return;
+    delete list.dataset.stale;
+    htmx.ajax("GET", list.getAttribute("hx-get"), { target: "#video-list", swap: "outerHTML" });
+  }
+
   function initSortables() {
     document.querySelectorAll("[data-sortable]").forEach((list) => {
       if (list._sortable) return;
@@ -33,7 +44,9 @@
         handle: ".drag",
         draggable: "[data-video-id]",
         animation: 150,
+        onStart() { dragging = true; },
         onEnd() {
+          dragging = false;
           const order = [...list.querySelectorAll("[data-video-id]")].map((el) => el.dataset.videoId).join(",");
           htmx.ajax("POST", list.dataset.sortable, { target: "#video-list", swap: "outerHTML", values: { order } });
         },
@@ -67,7 +80,15 @@
   function refresh() { tickCountdowns(); initSortables(); followLog(); }
 
   document.addEventListener("DOMContentLoaded", () => { refresh(); toggleTypeFields(); });
-  document.addEventListener("htmx:afterSettle", refresh);
+  document.addEventListener("htmx:afterSettle", () => { refresh(); refreshIfStale(); });
+  document.addEventListener("htmx:beforeRequest", (e) => {
+    const elt = e.detail.elt;
+    if (elt.id !== "video-list" || e.detail.requestConfig.verb !== "get") return;
+    if (dragging || elt.querySelector(".editing")) {
+      e.preventDefault();
+      elt.dataset.stale = "1";
+    }
+  });
   document.addEventListener("change", (e) => { if (e.target.matches("[name=type]")) toggleTypeFields(); });
   document.addEventListener("htmx:responseError", (e) => {
     const xhr = e.detail.xhr;
