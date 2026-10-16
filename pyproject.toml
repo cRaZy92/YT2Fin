@@ -8,6 +8,7 @@ dependencies = [
   "jinja2>=3.1",
   "python-multipart>=0.0.12",
   "sqlalchemy>=2.0.36",
+  "alembic>=1.13",
   "yt-dlp[default]>=2025.11.12",
   "deno>=2.0",
 ]
@@ -23,7 +24,8 @@ build-backend = "setuptools.build_meta"
 include = ["app*"]
 
 [tool.setuptools.package-data]
-app = ["templates/*.html", "templates/partials/*.html", "static/*", "static/vendor/*"]
+app = ["templates/*.html", "templates/partials/*.html", "static/*", "static/vendor/*",
+       "migrations/*.py", "migrations/*.mako", "migrations/versions/*.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

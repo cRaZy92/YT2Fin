@@ -52,3 +52,20 @@ uv venv --python 3.12 .venv && uv pip install --python .venv -e '.[dev]'
 .venv/bin/pytest -m integration     # downloads a real 19-second video
 MEDIA_ROOT=./media CONFIG_DIR=./config .venv/bin/python -m app
 ```
+
+### Database migrations
+
+The schema is managed by Alembic (`app/migrations/`). The app migrates itself on startup.
+Before applying pending migrations to an existing database, it saves a copy to
+`/config/backups/` and keeps the newest 5.
+
+After changing `app/models.py`:
+
+```bash
+.venv/bin/alembic revision --autogenerate -m "describe the change"   # compares against ./config/app.db
+# review the new file in app/migrations/versions/, then restart the app
+```
+
+`tests/test_migrations.py::test_migrations_match_the_models` fails if a model changes without a
+migration. SQLite can't alter columns in place, so migrations use batch mode (table rebuilds) and
+run with foreign keys off, so rebuilding a table never cascade-deletes its children.
