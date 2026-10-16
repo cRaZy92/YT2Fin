@@ -159,7 +159,7 @@ def test_unignore_and_retry(session, config, make_mapping, add_video):
     services.unignore(session, mapping, "z")
     assert mapping.ignored == []
     video = add_video(mapping, "f", status=VideoStatus.FAILED, attempts=3, error="boom")
-    services.retry_video(session, video)
+    services.retry_video(session, config.media_root, video)
     assert (video.status, video.attempts, video.error, video.next_retry_at) == (VideoStatus.PENDING, 0, None, None)
 
 
@@ -202,3 +202,13 @@ def test_create_mapping_reports_unwritable_media_root(session, config):
     finally:
         config.media_root.chmod(0o755)
     assert session.scalars(select(Mapping)).all() == []
+
+
+def test_retrying_an_unavailable_video_renumbers_the_rest(session, config, make_mapping, add_video):
+    mapping = make_mapping()
+    gone = add_video(mapping, "gone", status=VideoStatus.UNAVAILABLE)
+    put_done(session, mapping, add_video, "b", "B")
+    services.reorder(session, config.media_root, mapping, [gone.id] + [v.id for v in mapping.videos if v.id != gone.id])
+    assert (Path(mapping.folder) / "Season 01" / "My Show S01E01 B.mkv").exists()
+    services.retry_video(session, config.media_root, gone)
+    assert (Path(mapping.folder) / "Season 01" / "My Show S01E02 B.mkv").exists()

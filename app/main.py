@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import PlainTextResponse
 
 from app import organizer
@@ -155,6 +156,11 @@ def create_app(config: AppConfig | None = None, *, start_background: bool = True
     app.add_middleware(SameOriginMiddleware)
     if config.auth_user and config.auth_password:
         app.add_middleware(BasicAuthMiddleware, username=config.auth_user, password=config.auth_password)
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error_as_text(request, exc: StarletteHTTPException):
+        # Plain text so htmx error toasts read "Folder not found", not {"detail": ...}
+        return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=exc.headers)
+
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     for module in (dashboard, sse, mappings, videos, settings_page):
         app.include_router(module.router)

@@ -128,3 +128,9 @@ def test_create_mapping_on_unwritable_media_shows_form_error(client, app, config
     finally:
         config.media_root.chmod(0o755)
     assert response.status_code == 400 and "not writable" in response.text
+
+
+def test_http_errors_are_plain_text_not_json(client):
+    response = client.get("/folders", params={"path": "missing"})
+    assert response.status_code == 404
+    assert response.text == "Folder not found" and response.headers["content-type"].startswith("text/plain")

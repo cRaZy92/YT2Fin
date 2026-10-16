@@ -226,12 +226,13 @@ def unignore(session: Session, mapping: Mapping, youtube_id: str) -> None:
     session.commit()
 
 
-def retry_video(session: Session, video: Video) -> None:
+def retry_video(session: Session, media_root: Path, video: Video) -> None:
     video.status = VideoStatus.PENDING
     video.attempts = 0
     video.error = None
     video.next_retry_at = None
     session.commit()
+    _apply(session, media_root, video.mapping)  # an unavailable video counts again, so numbers shift
 
 
 def mapping_stats(session: Session) -> dict[int, dict[str, int]]:

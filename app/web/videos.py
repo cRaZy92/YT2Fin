@@ -155,6 +155,6 @@ async def delete(request: Request, video_id: int, session: SessionDep):
 @router.post("/videos/{video_id}/retry")
 async def retry(request: Request, video_id: int, session: SessionDep):
     video = get_or_404(session, Video, video_id)
-    services.retry_video(session, video)
+    services.retry_video(session, _media_root(request), video)
     request.app.state.worker.kick()
     return _list(request, session, video.mapping)
