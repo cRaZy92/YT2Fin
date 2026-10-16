@@ -4,11 +4,12 @@ set -eu
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
 
-if [ "$(id -u)" = "0" ]; then
+if [ "$(id -u)" = "0" ] && [ "${YTJS_PRIVS_DROPPED:-0}" != "1" ]; then
+  export YTJS_PRIVS_DROPPED=1
   groupadd -o -g "$PGID" app 2>/dev/null || true
   useradd -o -u "$PUID" -g "$PGID" -M -d /config -s /usr/sbin/nologin app 2>/dev/null || true
   mkdir -p /config /media
-  chown "$PUID:$PGID" /config
+  chown -R "$PUID:$PGID" /config
   # The app updates yt-dlp in place, so the venv must be writable by the runtime user.
   if [ "$(stat -c %u /opt/venv)" != "$PUID" ]; then
     chown -R "$PUID:$PGID" /opt/venv
