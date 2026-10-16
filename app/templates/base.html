@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}YT → Jellyfin{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/vendor/htmx.min.js"></script>
+  <script src="/static/vendor/sse.js"></script>
+  <script src="/static/vendor/Sortable.min.js"></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body hx-ext="sse" sse-connect="/events">
+  <header class="topbar">
+    <a class="brand" href="/">YT → Jellyfin</a>
+    <nav>
+      <a href="/">Mappings</a>
+      <a href="/mappings/new">New mapping</a>
+      <a href="/settings">Settings</a>
+      <a href="/logs">Logs</a>
+    </nav>
+  </header>
+  <section id="activity" sse-swap="activity" hx-get="/activity" hx-trigger="load"></section>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <div id="toast" class="toast" hidden></div>
+</body>
+</html>

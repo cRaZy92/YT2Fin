@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Logs · YT → Jellyfin{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Live log</h1>
+  <label class="check muted"><input type="checkbox" id="log-follow" checked> Follow</label>
+</div>
+<div id="log" class="log" sse-swap="log" hx-swap="beforeend">{% for line in lines %}<div class="log-line">{{ line }}</div>{% endfor %}</div>
+{% endblock %}

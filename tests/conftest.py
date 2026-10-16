@@ -133,3 +133,29 @@ class FakeWorker:
 @pytest.fixture
 def fake_worker() -> FakeWorker:
     return FakeWorker()
+
+
+@pytest.fixture
+def app(config):
+    from app.main import create_app
+
+    return create_app(config, start_background=False)
+
+
+@pytest.fixture
+def client(app):
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+def wait_until(predicate, timeout: float = 2.0) -> None:
+    import time
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        time.sleep(0.01)
+    raise AssertionError("condition not met in time")

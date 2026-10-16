@@ -1,0 +1,131 @@
+from __future__ import annotations
+
+import asyncio
+import base64
+import binascii
+import logging
+import secrets
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import PlainTextResponse
+
+from app import organizer
+from app import settings as settings_mod
+from app.config import AppConfig, load_config
+from app.db import init_db, make_engine, make_session_factory
+from app.events import EventBus
+from app.logbuffer import LogBuffer, setup_logging
+from app.notify import Notifier
+from app.scheduler import Scheduler
+from app.sync import Syncer
+from app.templating import templates
+from app.updater import Updater
+from app.web import dashboard, sse
+from app.worker import Worker
+
+log = logging.getLogger(__name__)
+
+STATIC_DIR = Path(__file__).parent / "static"
+RESTART_EXIT_CODE = 3
+PUBLIC_PATHS = {"/healthz"}
+
+
+class BasicAuthMiddleware:
+    """Pure ASGI middleware so streaming (SSE) responses are not buffered."""
+
+    def __init__(self, app, username: str, password: str) -> None:
+        self.app = app
+        self._username = username.encode()
+        self._password = password.encode()
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http" or scope["path"] in PUBLIC_PATHS or self._authorized(scope):
+            await self.app(scope, receive, send)
+            return
+        response = PlainTextResponse(
+            "Authentication required", status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="yt-jellyfin-sync"'},
+        )
+        await response(scope, receive, send)
+
+    def _authorized(self, scope) -> bool:
+        header = dict(scope["headers"]).get(b"authorization", b"").decode("latin-1")
+        scheme, _, encoded = header.partition(" ")
+        if scheme.lower() != "basic":
+            return False
+        try:
+            username, _, password = base64.b64decode(encoded, validate=True).partition(b":")
+        except (binascii.Error, ValueError):
+            return False
+        return secrets.compare_digest(username, self._username) & secrets.compare_digest(password, self._password)
+
+
+def request_restart(app: FastAPI) -> None:
+    app.state.exit_code = RESTART_EXIT_CODE
+    server = app.state.server
+    if server is not None:
+        server.should_exit = True
+
+
+def create_app(config: AppConfig | None = None, *, start_background: bool = True) -> FastAPI:
+    config = config or load_config()
+    config.config_dir.mkdir(parents=True, exist_ok=True)
+    engine = make_engine(config.db_path)
+    init_db(engine)
+    session_factory = make_session_factory(engine)
+    bus = EventBus()
+    notifier = Notifier(bus, templates.env)
+    log_buffer = LogBuffer()
+    setup_logging(config, log_buffer)
+    log_buffer.listener = notifier.log_line
+    worker = Worker(session_factory, config, notifier)
+    syncer = Syncer(session_factory, config, worker, notifier)
+    updater = Updater(worker)
+    scheduler = Scheduler(session_factory, worker, syncer, updater)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        bus.bind(asyncio.get_running_loop())
+        try:
+            with session_factory() as session:
+                organizer.reconcile(session, config.media_root, config.staging_dir,
+                                    settings_mod.get_all(session)["max_filename_length"])
+        except Exception:
+            log.exception("Startup reconciliation failed")
+        tasks: list[asyncio.Task] = []
+        if start_background:
+            worker.on_idle = lambda: request_restart(app)
+            tasks = [asyncio.create_task(worker.run()), asyncio.create_task(scheduler.run())]
+        log.info("yt-jellyfin-sync started (media=%s, config=%s)", config.media_root, config.config_dir)
+        try:
+            yield
+        finally:
+            await worker.stop()
+            for task in [*tasks, *app.state.background]:
+                task.cancel()
+            await asyncio.gather(*tasks, *app.state.background, return_exceptions=True)
+            log_buffer.listener = None
+            engine.dispose()
+
+    app = FastAPI(title="YouTube → Jellyfin Sync", lifespan=lifespan, docs_url=None, redoc_url=None)
+    app.state.config = config
+    app.state.session_factory = session_factory
+    app.state.bus = bus
+    app.state.notifier = notifier
+    app.state.worker = worker
+    app.state.syncer = syncer
+    app.state.updater = updater
+    app.state.scheduler = scheduler
+    app.state.log_buffer = log_buffer
+    app.state.exit_code = 0
+    app.state.server = None
+    app.state.background = set()
+    if config.auth_user and config.auth_password:
+        app.add_middleware(BasicAuthMiddleware, username=config.auth_user, password=config.auth_password)
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    for module in (dashboard, sse):
+        app.include_router(module.router)
+    return app

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <h1>Mappings</h1>
+  <a class="btn" href="/mappings/new">New mapping</a>
+</div>
+{% if not mappings %}
+<div class="empty">No mappings yet. <a href="/mappings/new">Create your first one</a>: map a YouTube playlist, or a hand-picked list, to a Jellyfin folder.</div>
+{% endif %}
+<div class="cards">
+  {% for m in mappings %}{% include "partials/mapping_card.html" %}{% endfor %}
+</div>
+{% endblock %}
