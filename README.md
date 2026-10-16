@@ -38,7 +38,8 @@ The service only writes files there; it never talks to Jellyfin itself.
      because Dokploy re-clones the repository on every deploy.
    - `MEDIA_PATH`: the absolute server path your Jellyfin libraries point at.
    - `PUID`/`PGID`: the owner of that folder (`stat -c '%u %g' <MEDIA_PATH>`).
-   - `AUTH_USER`/`AUTH_PASSWORD`: set them if the port is reachable from outside your LAN.
+   - `AUTH_USER`/`AUTH_PASSWORD`: optional. Leave them unset behind an auth proxy such as Pangolin, but
+     firewall the published port so nobody can reach the app around the proxy.
 4. **Deploy**, then open `http://<server>:3230`. The UI is published straight on the port, so no Dokploy
    domain is needed. If you'd rather use a domain with HTTPS, add one under **Domains** pointing at
    container port `8080`.
