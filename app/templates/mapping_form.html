@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ ("Edit " ~ mapping.name) if mapping else "New mapping" }} · YT → Jellyfin{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ "Edit mapping" if mapping else "New mapping" }}</h1></div>
+{% if error %}<div class="banner error">{{ error }}</div>{% endif %}
+<form class="panel form" method="post" action="{{ ('/mappings/%d/edit'|format(mapping.id)) if mapping else '/mappings' }}">
+  <label>Name
+    <input name="name" value="{{ v.name }}" required>
+  </label>
+  <label>Type
+    {% if mapping %}
+      <input type="hidden" name="type" value="{{ v.type }}">
+      <input value="{{ 'Show' if v.type == 'show' else 'Music videos' }}" disabled>
+      <small>The type cannot be changed after creation.</small>
+    {% else %}
+      <select name="type">
+        <option value="show" {{ "selected" if v.type == "show" }}>Show: Show S01E01 Title</option>
+        <option value="music_video" {{ "selected" if v.type == "music_video" }}>Music videos: Artist - Song</option>
+      </select>
+    {% endif %}
+  </label>
+  <label data-show-only>Show title
+    <input name="show_title" value="{{ v.show_title or '' }}" placeholder="Defaults to the name">
+    <small>Used in file names and as the series title in Jellyfin.</small>
+  </label>
+  <label>Folder <span class="hint">relative to {{ media_root }} (or an absolute path inside it)</span>
+    <span class="row">
+      <input id="folder" name="folder" value="{{ v.folder }}" required placeholder="youtube/shows/Veritasium">
+      <button type="button" class="btn ghost" hx-get="/folders" hx-target="#folder-picker">Browse…</button>
+    </span>
+  </label>
+  <div id="folder-picker"></div>
+  <label>YouTube playlist URL
+    <input name="playlist_url" value="{{ v.playlist_url or '' }}" placeholder="Leave empty for a manual list">
+    <small>Sync only adds new videos. Your order, names and removals are never overwritten.</small>
+  </label>
+  <label>Sync interval (minutes)
+    <input name="sync_interval_minutes" value="{{ v.sync_interval_minutes }}" inputmode="numeric" placeholder="Global default: {{ globals.sync_interval_minutes }}">
+  </label>
+  <label class="check"><input type="checkbox" name="enabled" {{ "checked" if v.enabled }}> Enabled (sync and download)</label>
+  <details {{ "open" if v.overrides }}>
+    <summary>Quality overrides for this mapping</summary>
+    <div class="grid">
+      {% for key, label, kind in override_fields %}
+      {% set current = v.overrides.get(key) %}
+      <label>{{ label }}
+        {% if kind == "choice" %}
+        <select name="ov_{{ key }}">
+          <option value="">Use global ({{ globals[key] }})</option>
+          {% for c in choices[key] %}
+          <option value="{{ c }}" {{ "selected" if current is not none and current|string == c|string }}>{{ c }}</option>
+          {% endfor %}
+        </select>
+        {% elif kind == "bool" %}
+        <select name="ov_{{ key }}">
+          <option value="">Use global ({{ "yes" if globals[key] else "no" }})</option>
+          <option value="true" {{ "selected" if current is not none and current|string|lower == "true" }}>yes</option>
+          <option value="false" {{ "selected" if current is not none and current|string|lower == "false" }}>no</option>
+        </select>
+        {% else %}
+        <input name="ov_{{ key }}" value="{{ current if current is not none else '' }}" placeholder="Global: {{ globals[key] }}">
+        {% endif %}
+      </label>
+      {% endfor %}
+    </div>
+  </details>
+  <div class="actions">
+    <button class="btn">{{ "Save" if mapping else "Create mapping" }}</button>
+    <a class="btn ghost" href="{{ ('/mappings/%d'|format(mapping.id)) if mapping else '/' }}">Cancel</a>
+  </div>
+</form>
+{% if mapping %}
+<form class="panel danger-zone" method="post" action="/mappings/{{ mapping.id }}/delete"
+      onsubmit="return confirm('Delete this mapping?')">
+  <h2>Delete mapping</h2>
+  <label class="check"><input type="checkbox" name="delete_files"> Also delete its folder and every downloaded file</label>
+  <p><button class="btn danger">Delete mapping</button></p>
+</form>
+{% endif %}
+{% endblock %}

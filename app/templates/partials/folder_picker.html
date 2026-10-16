@@ -1,0 +1,25 @@
+<div class="picker">
+  <div class="picker-head">
+    <strong>{{ root }}{% if rel %}/{{ rel }}{% endif %}</strong>
+    {% if parent is not none %}
+    <button type="button" class="btn small ghost" hx-get="/folders?path={{ parent|urlencode }}" hx-target="#folder-picker">↑ Up</button>
+    {% endif %}
+    {% if rel %}<button type="button" class="btn small" data-pick-folder="{{ rel }}">Use this folder</button>{% endif %}
+  </div>
+  <ul class="picker-list">
+    {% for name in subdirs %}
+    {% set child = (rel ~ "/" ~ name) if rel else name %}
+    <li>
+      <button type="button" class="link" hx-get="/folders?path={{ child|urlencode }}" hx-target="#folder-picker">📁 {{ name }}</button>
+      <button type="button" class="btn small ghost" data-pick-folder="{{ child }}">Use</button>
+    </li>
+    {% else %}
+    <li class="muted">No subfolders</li>
+    {% endfor %}
+  </ul>
+  <span class="inline">
+    <input id="new-folder-name" name="new_folder_name" placeholder="New folder name">
+    <button type="button" class="btn small" hx-post="/folders" hx-vals='{{ {"path": rel}|tojson }}'
+            hx-include="#new-folder-name" hx-target="#folder-picker">Create</button>
+  </span>
+</div>

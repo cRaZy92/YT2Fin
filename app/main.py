@@ -23,7 +23,7 @@ from app.scheduler import Scheduler
 from app.sync import Syncer
 from app.templating import templates
 from app.updater import Updater
-from app.web import dashboard, sse
+from app.web import dashboard, mappings, sse
 from app.worker import Worker
 
 log = logging.getLogger(__name__)
@@ -126,6 +126,6 @@ def create_app(config: AppConfig | None = None, *, start_background: bool = True
     if config.auth_user and config.auth_password:
         app.add_middleware(BasicAuthMiddleware, username=config.auth_user, password=config.auth_password)
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-    for module in (dashboard, sse):
+    for module in (dashboard, sse, mappings):
         app.include_router(module.router)
     return app
