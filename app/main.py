@@ -103,6 +103,7 @@ def create_app(config: AppConfig | None = None, *, start_background: bool = True
         try:
             yield
         finally:
+            app.state.stopping = True
             await worker.stop()
             for task in [*tasks, *app.state.background]:
                 task.cancel()
@@ -122,6 +123,7 @@ def create_app(config: AppConfig | None = None, *, start_background: bool = True
     app.state.log_buffer = log_buffer
     app.state.exit_code = 0
     app.state.server = None
+    app.state.stopping = False
     app.state.background = set()
     if config.auth_user and config.auth_password:
         app.add_middleware(BasicAuthMiddleware, username=config.auth_user, password=config.auth_password)

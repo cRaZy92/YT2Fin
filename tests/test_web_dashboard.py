@@ -78,3 +78,41 @@ async def test_event_stream_formats_and_unsubscribes():
     assert await stream.__anext__() == "event: x\ndata: hi\n\n"
     await stream.aclose()
     assert queue not in bus._subscribers
+
+
+async def test_event_stream_ends_when_server_is_stopping():
+    bus = EventBus()
+    bus.bind(asyncio.get_running_loop())
+    queue = bus.subscribe()
+    stopping = False
+
+    async def connected():
+        return False
+
+    stream = event_stream(bus, queue, connected, lambda: stopping)
+    assert await stream.__anext__() == "retry: 3000\n\n"
+    stopping = True
+    chunks = [chunk async for chunk in stream]  # must terminate on its own
+    assert all(c.startswith(":") for c in chunks)
+    assert queue not in bus._subscribers
+
+
+def test_server_has_graceful_shutdown_timeout(monkeypatch, config):
+    import app.__main__ as entry
+
+    captured = {}
+
+    class FakeServer:
+        def __init__(self, cfg):
+            captured["cfg"] = cfg
+
+        def run(self):
+            pass
+
+    monkeypatch.setattr(entry, "load_config", lambda: config)
+    monkeypatch.setattr(entry.uvicorn, "Server", FakeServer)
+    try:
+        entry.main()
+    except SystemExit:
+        pass
+    assert 0 < captured["cfg"].timeout_graceful_shutdown <= 5
