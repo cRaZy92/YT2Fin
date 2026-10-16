@@ -53,3 +53,16 @@ def test_ytdlp_update_button(client, app):
     app.state.updater = FakeUpdater()
     response = client.post("/settings/ytdlp/update", follow_redirects=False)
     assert response.status_code == 303 and "Up+to+date" in response.headers["location"]
+
+
+def test_cookies_file_is_created_private_from_the_start(client, config, monkeypatch):
+    import os
+    from pathlib import Path
+
+    monkeypatch.setattr(Path, "chmod", lambda self, mode: None)  # no fixing permissions afterwards
+    old_umask = os.umask(0)
+    try:
+        client.post("/settings/cookies", files={"file": ("cookies.txt", COOKIES, "text/plain")})
+    finally:
+        os.umask(old_umask)
+    assert stat.S_IMODE(config.cookies_path.stat().st_mode) == 0o600

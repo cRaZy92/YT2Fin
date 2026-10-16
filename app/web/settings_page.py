@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from typing import Annotated
 from urllib.parse import urlencode
@@ -80,8 +81,11 @@ async def upload_cookies(request: Request, session: SessionDep, file: Annotated[
     if not looks_like_cookies(text):
         return _page(request, session, error="That does not look like a Netscape-format cookies.txt file", status_code=400)
     path = request.app.state.config.cookies_path
-    path.write_text(text, encoding="utf-8")
-    path.chmod(0o600)
+    # Created with 0600 from the first byte; the cookies are a logged-in YouTube session.
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        os.fchmod(fh.fileno(), 0o600)  # an existing file keeps its old mode otherwise
+        fh.write(text)
     return _redirect("Cookies saved")
 
 
