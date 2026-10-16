@@ -178,3 +178,40 @@ def test_execute_moves_rolls_back_when_a_move_fails(tmp_path):
     assert a.read_text() == "A" and b.read_text() == "B" and blocker.read_text() == "BLOCK"
     assert not (tmp_path / "x.mkv").exists()
     assert not list(tmp_path.glob(".ytjs-move-*"))
+
+
+def test_existing_foreign_tvshow_nfo_is_kept_but_ours_is_updated(session, config, make_mapping):
+    mapping = make_mapping()
+    folder = Path(mapping.folder)
+    (folder / "tvshow.nfo").write_text("<tvshow><title>Curated</title><tvdbid>1</tvdbid></tvshow>")
+    apply(session, config, mapping)
+    assert "Curated" in (folder / "tvshow.nfo").read_text()
+
+    other = make_mapping("Other")
+    apply(session, config, other)
+    other.show_title = "Renamed"
+    session.commit()
+    apply(session, config, other)
+    assert "<title>Renamed</title>" in (Path(other.folder) / "tvshow.nfo").read_text()
+
+
+def test_apply_only_removes_empty_season_folders(session, config, make_mapping, done_video):
+    mapping = make_mapping()
+    folder = Path(mapping.folder)
+    (folder / "extras").mkdir()
+    (folder / "Season 07").mkdir()
+    done_video(mapping, "a", "x/a.mkv", title="A")
+    apply(session, config, mapping)
+    assert (folder / "extras").is_dir()
+    assert not (folder / "Season 07").exists()
+
+
+def test_tvshow_nfo_written_by_older_versions_is_still_updated(session, config, make_mapping):
+    mapping = make_mapping()
+    folder = Path(mapping.folder)
+    (folder / "tvshow.nfo").write_text(
+        '<?xml version="1.0" encoding="utf-8" standalone="yes"?>\n<tvshow>\n  <title>My Show</title>\n</tvshow>\n')
+    mapping.show_title = "New Name"
+    session.commit()
+    apply(session, config, mapping)
+    assert "<title>New Name</title>" in (folder / "tvshow.nfo").read_text()

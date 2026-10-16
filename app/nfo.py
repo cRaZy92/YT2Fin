@@ -5,6 +5,7 @@ import re
 from xml.etree import ElementTree as ET
 
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+MARKER = "managed by yt-jellyfin-sync"
 _HEADER = '<?xml version="1.0" encoding="utf-8" standalone="yes"?>\n'
 
 
@@ -30,8 +31,20 @@ def _render(root: ET.Element) -> str:
     return _HEADER + ET.tostring(root, encoding="unicode") + "\n"
 
 
+def is_ours(text: str) -> bool:
+    """True for NFOs this app wrote, including the marker-less ones from older versions."""
+    if MARKER in text:
+        return True
+    try:
+        root = ET.fromstring(text.split("?>", 1)[-1])
+    except ET.ParseError:
+        return False
+    return root.tag == "tvshow" and [child.tag for child in root] == ["title"]
+
+
 def tvshow_nfo(title: str) -> str:
     root = ET.Element("tvshow")
+    root.append(ET.Comment(f" {MARKER} "))
     _add(root, "title", title)
     return _render(root)
 

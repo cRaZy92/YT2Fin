@@ -183,7 +183,10 @@ def _write_metadata(folder: Path, mapping: Mapping) -> None:
     is_show = mapping.type == MappingType.SHOW
     numbers = naming.season_episode(naming_items(mapping)) if is_show else {}
     if is_show:
-        _write_if_changed(folder / "tvshow.nfo", nfo.tvshow_nfo(show_title))
+        tvshow = folder / "tvshow.nfo"
+        # Never clobber a tvshow.nfo someone else wrote (a curated one, or Jellyfin's own).
+        if not tvshow.exists() or nfo.is_ours(tvshow.read_text(encoding="utf-8", errors="replace")):
+            _write_if_changed(tvshow, nfo.tvshow_nfo(show_title))
     for video in ordered_videos(mapping):
         if video.status != VideoStatus.DONE or not video.file_path:
             continue
@@ -220,8 +223,9 @@ def _ensure_poster(folder: Path, mapping: Mapping) -> None:
 
 
 def _remove_empty_dirs(folder: Path) -> None:
-    for path in sorted((p for p in folder.rglob("*") if p.is_dir()), key=lambda p: len(p.parts), reverse=True):
-        if not any(path.iterdir()):
+    """Remove empty season folders only; other folders may belong to the user."""
+    for path in folder.iterdir():
+        if path.is_dir() and _SEASON_DIR.fullmatch(path.name) and not any(path.iterdir()):
             path.rmdir()
 
 
