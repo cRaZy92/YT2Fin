@@ -116,3 +116,12 @@ def test_server_has_graceful_shutdown_timeout(monkeypatch, config):
     except SystemExit:
         pass
     assert 0 < captured["cfg"].timeout_graceful_shutdown <= 5
+
+
+def test_cross_site_posts_are_rejected(client, app):
+    assert client.post("/queue/pause", headers={"Origin": "http://evil.example"}).status_code == 403
+    assert client.post("/queue/pause", headers={"Sec-Fetch-Site": "cross-site"}).status_code == 403
+    assert not app.state.worker.paused
+    assert client.post("/queue/pause", headers={"Origin": "http://testserver", **HX}).status_code == 204
+    assert client.post("/queue/resume", headers={"Sec-Fetch-Site": "same-origin", **HX}).status_code == 204
+    assert client.get("/", headers={"Origin": "http://evil.example"}).status_code == 200

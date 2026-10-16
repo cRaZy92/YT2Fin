@@ -7,6 +7,7 @@ import logging
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -61,6 +62,32 @@ class BasicAuthMiddleware:
         except (binascii.Error, ValueError):
             return False
         return secrets.compare_digest(username, self._username) & secrets.compare_digest(password, self._password)
+
+
+class SameOriginMiddleware:
+    """Rejects state-changing requests that another website triggers in the user's browser (CSRF)."""
+
+    SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] == "http" and scope["method"] not in self.SAFE_METHODS and not self._same_origin(scope):
+            await PlainTextResponse("Cross-site request blocked", status_code=403)(scope, receive, send)
+            return
+        await self.app(scope, receive, send)
+
+    @staticmethod
+    def _same_origin(scope) -> bool:
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+        if headers.get("sec-fetch-site") == "cross-site":
+            return False
+        origin = headers.get("origin")
+        if origin is None:
+            return True  # non-browser clients and older browsers on same-origin form posts
+        allowed = {headers.get("host"), headers.get("x-forwarded-host")} - {None}
+        return urlsplit(origin).netloc in allowed
 
 
 def request_restart(app: FastAPI) -> None:
@@ -125,6 +152,7 @@ def create_app(config: AppConfig | None = None, *, start_background: bool = True
     app.state.server = None
     app.state.stopping = False
     app.state.background = set()
+    app.add_middleware(SameOriginMiddleware)
     if config.auth_user and config.auth_password:
         app.add_middleware(BasicAuthMiddleware, username=config.auth_user, password=config.auth_password)
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
