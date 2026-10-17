@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app import descriptions, organizer
 from app import settings as settings_mod
-from app.models import IgnoredVideo, Mapping, MappingType, SeasonBreak, Video, VideoStatus
+from app.models import Mapping, MappingType, SeasonBreak, Video, VideoStatus
 
 
 class ServiceError(ValueError):
@@ -184,6 +184,8 @@ def reorder(session: Session, media_root: Path, mapping: Mapping, ordered_ids: l
 
 def set_season_break(session: Session, media_root: Path, mapping: Mapping, video_id: int, on: bool) -> None:
     video = _get_video(mapping, video_id)
+    if video.status == VideoStatus.DELETED:
+        raise ServiceError("A deleted video cannot start a season; restore it first")
     existing = next((b for b in mapping.season_breaks if b.video_id == video_id), None)
     if on and existing is None:
         if video is organizer.ordered_videos(mapping)[0]:
@@ -212,7 +214,8 @@ def rename_video(session: Session, media_root: Path, video: Video, *, title: str
     _apply(session, media_root, mapping)
 
 
-def delete_video(session: Session, media_root: Path, video: Video, ignore: bool) -> None:
+def delete_video(session: Session, media_root: Path, video: Video) -> None:
+    """Delete the files but keep the row as a ghost in its slot: unnumbered, skipped by sync, restorable."""
     mapping = video.mapping
     ordered = organizer.ordered_videos(mapping)
     brk = next((b for b in mapping.season_breaks if b.video_id == video.id), None)
@@ -224,20 +227,21 @@ def delete_video(session: Session, media_root: Path, video: Video, ignore: bool)
             mapping.season_breaks.append(SeasonBreak(video_id=following.id))
         session.flush()
     organizer.delete_video_files(media_root, mapping, video)
-    if ignore and mapping.playlist_url and all(i.youtube_id != video.youtube_id for i in mapping.ignored):
-        mapping.ignored.append(IgnoredVideo(youtube_id=video.youtube_id, title=video.display_title))
-    mapping.videos.remove(video)
-    for position, remaining in enumerate(organizer.ordered_videos(mapping), start=1):
-        remaining.position = position
+    video.status = VideoStatus.DELETED
+    video.file_path = video.file_size = video.downloaded_at = None
+    video.error = video.next_retry_at = None
+    video.attempts = 0
     session.commit()
     _apply(session, media_root, mapping)
 
 
-def unignore(session: Session, mapping: Mapping, youtube_id: str) -> None:
-    for item in list(mapping.ignored):
-        if item.youtube_id == youtube_id:
-            mapping.ignored.remove(item)
+def restore_video(session: Session, media_root: Path, video: Video) -> None:
+    """Bring a ghost back in its slot; it downloads again and the videos after it shift back."""
+    if video.status != VideoStatus.DELETED:
+        raise ServiceError("This video is not deleted")
+    video.status = VideoStatus.PENDING
     session.commit()
+    _apply(session, media_root, video.mapping)
 
 
 def retry_video(session: Session, media_root: Path, video: Video) -> None:
@@ -258,7 +262,8 @@ def mapping_stats(session: Session) -> dict[int, dict[str, Any]]:
     for mapping_id, status, count in rows:
         entry = stats.setdefault(mapping_id, dict(EMPTY_STATS))
         entry[status] = count
-        entry["total"] += count
+        if status != VideoStatus.DELETED:
+            entry["total"] += count
     done = session.execute(
         select(Video.mapping_id, func.sum(Video.file_size), func.sum(Video.duration), func.max(Video.downloaded_at))
         .where(Video.status == VideoStatus.DONE).group_by(Video.mapping_id)

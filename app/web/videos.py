@@ -4,11 +4,11 @@ from dataclasses import replace
 from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import PlainTextResponse
 
 from app import naming, organizer, services
 from app import settings as settings_mod
-from app.models import Mapping, MappingType, Video
+from app.models import Mapping, MappingType, Video, VideoStatus
 from app.services import ServiceError
 from app.web.deps import SessionDep, get_or_404, render
 from app.ytdlp_client import DownloadFailed, is_channel_url
@@ -18,7 +18,8 @@ router = APIRouter()
 
 def list_context(session, mapping: Mapping) -> dict:
     values = settings_mod.resolve(session, mapping)
-    videos = organizer.ordered_videos(mapping)
+    videos = organizer.ordered_videos(mapping, include_deleted=True)
+    live = [v for v in videos if v.status != VideoStatus.DELETED]
     stems = organizer.target_stems(mapping, values["max_filename_length"])
     numbers = naming.season_episode(organizer.naming_items(mapping)) if mapping.type == MappingType.SHOW else {}
     previews = {}
@@ -33,7 +34,9 @@ def list_context(session, mapping: Mapping) -> dict:
         "codes": {vid: naming.episode_code(*n) for vid, n in numbers.items()},
         "season_starts": {vid: n[0] for vid, n in numbers.items() if n[1] == 1},
         "breaks": {b.video_id for b in mapping.season_breaks},
-        "first_id": videos[0].id if videos else None,
+        "first_id": live[0].id if live else None,
+        "live_count": len(live),
+        "deleted_count": len(videos) - len(live),
     }
 
 
@@ -113,12 +116,6 @@ async def add_videos(request: Request, mapping_id: int, session: SessionDep):
     return _list(request, session, mapping, notice=notice)
 
 
-@router.post("/mappings/{mapping_id}/ignored/{youtube_id}/unignore")
-async def unignore(request: Request, mapping_id: int, youtube_id: str, session: SessionDep):
-    services.unignore(session, get_or_404(session, Mapping, mapping_id), youtube_id)
-    return RedirectResponse(f"/mappings/{mapping_id}", status_code=303)
-
-
 @router.get("/videos/{video_id}/status")
 async def status(request: Request, video_id: int, session: SessionDep):
     return render(request, "partials/video_status.html", {"v": get_or_404(session, Video, video_id)})
@@ -179,10 +176,21 @@ async def season(request: Request, video_id: int, session: SessionDep):
 async def delete(request: Request, video_id: int, session: SessionDep):
     video = get_or_404(session, Video, video_id)
     mapping = video.mapping
-    form = await request.form()
     request.app.state.worker.cancel(video.id)
-    services.delete_video(session, _media_root(request), video, ignore=form.get("ignore") == "on")
+    services.delete_video(session, _media_root(request), video)
     return _list(request, session, mapping)
+
+
+@router.post("/videos/{video_id}/restore")
+async def restore(request: Request, video_id: int, session: SessionDep):
+    video = get_or_404(session, Video, video_id)
+    try:
+        services.restore_video(session, _media_root(request), video)
+    except ServiceError as exc:
+        session.rollback()
+        return _list(request, session, video.mapping, error=str(exc), status_code=422)
+    request.app.state.worker.kick()
+    return _list(request, session, video.mapping)
 
 
 @router.post("/videos/{video_id}/retry")

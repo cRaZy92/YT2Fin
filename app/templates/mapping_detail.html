@@ -34,20 +34,4 @@
   <span class="htmx-indicator muted">Fetching…</span>
 </form>
 {% include "partials/video_list.html" %}
-{% if mapping.ignored %}
-<details class="panel">
-  <summary>Ignored videos ({{ mapping.ignored|length }})</summary>
-  <p class="muted">You removed these. Sync will not add them again.</p>
-  <ul class="ignored">
-    {% for item in mapping.ignored %}
-    <li>
-      <a href="https://youtu.be/{{ item.youtube_id }}" target="_blank" rel="noopener">{{ item.title or item.youtube_id }}</a>
-      <form method="post" action="/mappings/{{ mapping.id }}/ignored/{{ item.youtube_id }}/unignore" class="inline">
-        <button class="btn small ghost">Un-ignore</button>
-      </form>
-    </li>
-    {% endfor %}
-  </ul>
-</details>
-{% endif %}
 {% endblock %}

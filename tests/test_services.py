@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select
 
-from app import services
-from app.models import IgnoredVideo, Mapping, MappingType, Video, VideoStatus
+from app import organizer, services
+from app.models import Mapping, MappingType, Video, VideoStatus
 from app.services import MappingInput, ServiceError
 
 
@@ -15,10 +15,10 @@ def show_input(**kw):
     return MappingInput(**data)
 
 
-def put_done(session, mapping, add_video, yid, title):
+def put_done(session, mapping, add_video, yid, title, **kw):
     folder = Path(mapping.folder)
     (folder / f"{yid}.mkv").write_text(f"media {yid}")
-    return add_video(mapping, yid, title=title, status=VideoStatus.DONE, file_path=f"{yid}.mkv")
+    return add_video(mapping, yid, title=title, status=VideoStatus.DONE, file_path=f"{yid}.mkv", **kw)
 
 
 def test_create_mapping_resolves_relative_folder_and_writes_tvshow(session, config):
@@ -128,36 +128,48 @@ def test_rename_show_and_music(session, config, make_mapping, add_video):
         services.rename_video(session, config.media_root, mv, artist="", song="x")
 
 
-def test_delete_video_moves_break_ignores_and_renumbers(session, config, make_mapping, add_video):
+def test_delete_video_leaves_a_ghost_moves_break_and_renumbers(session, config, make_mapping, add_video):
     mapping = make_mapping(playlist_url="https://youtube.com/playlist?list=1")
     a = put_done(session, mapping, add_video, "a", "A")
     b = put_done(session, mapping, add_video, "b", "B")
     c = put_done(session, mapping, add_video, "c", "C")
     services.set_season_break(session, config.media_root, mapping, b.id, True)
-    services.delete_video(session, config.media_root, b, ignore=True)
-    assert [v.youtube_id for v in sorted(mapping.videos, key=lambda v: v.position)] == ["a", "c"]
-    assert [v.position for v in sorted(mapping.videos, key=lambda v: v.position)] == [1, 2]
+    services.delete_video(session, config.media_root, b)
+    assert [v.youtube_id for v in organizer.ordered_videos(mapping)] == ["a", "c"]
+    assert [v.youtube_id for v in organizer.ordered_videos(mapping, include_deleted=True)] == ["a", "b", "c"]
+    assert (b.status, b.file_path, b.file_size) == (VideoStatus.DELETED, None, None)
     assert [br.video_id for br in mapping.season_breaks] == [c.id]
-    assert [i.youtube_id for i in mapping.ignored] == ["b"]
     folder = Path(mapping.folder)
     assert not any("B" in p.name for p in folder.rglob("*.mkv"))
     assert (folder / "Season 02" / "My Show S02E01 C.mkv").exists()
     assert session.get(Video, a.id) is not None
 
 
-def test_delete_video_without_playlist_never_ignores(session, config, make_mapping, add_video):
+def test_restore_puts_a_deleted_video_back_in_its_slot(session, config, make_mapping, add_video):
     mapping = make_mapping()
-    video = add_video(mapping, "a")
-    services.delete_video(session, config.media_root, video, ignore=True)
-    assert mapping.ignored == []
+    put_done(session, mapping, add_video, "a", "A")
+    b = put_done(session, mapping, add_video, "b", "B", custom_title="My B")
+    put_done(session, mapping, add_video, "c", "C")
+    folder = Path(mapping.folder)
+    services.delete_video(session, config.media_root, b)
+    assert (folder / "Season 01" / "My Show S01E02 C.mkv").exists()
+    services.restore_video(session, config.media_root, b)
+    assert (b.status, b.custom_title) == (VideoStatus.PENDING, "My B")
+    assert (folder / "Season 01" / "My Show S01E03 C.mkv").exists()  # E02 is held for the re-download
+    with pytest.raises(ServiceError):
+        services.restore_video(session, config.media_root, b)
 
 
-def test_unignore_and_retry(session, config, make_mapping, add_video):
+def test_deleted_videos_cannot_start_a_season(session, config, make_mapping, add_video):
     mapping = make_mapping()
-    mapping.ignored.append(IgnoredVideo(youtube_id="z", title="Z"))
-    session.commit()
-    services.unignore(session, mapping, "z")
-    assert mapping.ignored == []
+    add_video(mapping, "a")
+    b = add_video(mapping, "b", status=VideoStatus.DELETED)
+    with pytest.raises(ServiceError):
+        services.set_season_break(session, config.media_root, mapping, b.id, True)
+
+
+def test_retry(session, config, make_mapping, add_video):
+    mapping = make_mapping()
     video = add_video(mapping, "f", status=VideoStatus.FAILED, attempts=3, error="boom")
     services.retry_video(session, config.media_root, video)
     assert (video.status, video.attempts, video.error, video.next_retry_at) == (VideoStatus.PENDING, 0, None, None)
@@ -168,8 +180,10 @@ def test_mapping_stats(session, make_mapping, add_video):
     add_video(mapping, "a")
     add_video(mapping, "b", status=VideoStatus.DONE)
     add_video(mapping, "c", status=VideoStatus.DONE)
+    add_video(mapping, "d", status=VideoStatus.DELETED)
     stats = services.mapping_stats(session)[mapping.id]
     assert stats["done"] == 2 and stats["pending"] == 1 and stats["total"] == 3 and stats["failed"] == 0
+    assert stats["deleted"] == 1  # ghosts don't count as videos
 
 
 def test_delete_mapping_files_only_removes_what_the_app_owns(session, config, add_video):

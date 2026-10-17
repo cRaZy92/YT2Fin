@@ -22,6 +22,7 @@ class VideoStatus(StrEnum):
     DONE = "done"
     FAILED = "failed"
     UNAVAILABLE = "unavailable"
+    DELETED = "deleted"  # removed by the user: no files, no number, sync skips it; can be restored
 
 
 class Mapping(Base):
@@ -49,9 +50,6 @@ class Mapping(Base):
         back_populates="mapping", order_by="Video.position", cascade="all, delete-orphan"
     )
     season_breaks: Mapped[list[SeasonBreak]] = relationship(cascade="all, delete-orphan")
-    ignored: Mapped[list[IgnoredVideo]] = relationship(
-        cascade="all, delete-orphan", order_by="IgnoredVideo.ignored_at"
-    )
 
 
 class Video(Base):
@@ -100,17 +98,6 @@ class SeasonBreak(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     mapping_id: Mapped[int] = mapped_column(ForeignKey("mappings.id", ondelete="CASCADE"), index=True)
     video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"), unique=True)
-
-
-class IgnoredVideo(Base):
-    __tablename__ = "ignored_videos"
-    __table_args__ = (UniqueConstraint("mapping_id", "youtube_id"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    mapping_id: Mapped[int] = mapped_column(ForeignKey("mappings.id", ondelete="CASCADE"), index=True)
-    youtube_id: Mapped[str] = mapped_column(String(32))
-    title: Mapped[str] = mapped_column(String(500), default="")
-    ignored_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
 class Setting(Base):

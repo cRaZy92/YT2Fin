@@ -313,7 +313,7 @@ class Worker:
     def _on_success(self, video_id: int, info: VideoInfo, media: Path, extras: list[Path], opts: dict) -> None:
         with self.session_factory() as session:
             video = session.get(Video, video_id)
-            if video is None or video_id in self._cancelled:
+            if video is None or video_id in self._cancelled or video.status == VideoStatus.DELETED:
                 return
             mapping = video.mapping
             before = (video.display_title, video.artist, video.song)
@@ -336,7 +336,7 @@ class Worker:
     def _on_failure(self, video_id: int, err: DownloadFailed) -> None:
         with self.session_factory() as session:
             video = session.get(Video, video_id)
-            if video is None:
+            if video is None or video.status == VideoStatus.DELETED:
                 return
             mapping = video.mapping
             values = settings_mod.get_all(session)

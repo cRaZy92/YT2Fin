@@ -77,7 +77,24 @@
     toast._timer = setTimeout(() => { toast.hidden = true; }, 6000);
   }
 
-  function refresh() { tickCountdowns(); initSortables(); followLog(); }
+  // "Show deleted" on a mapping's list: the list is re-rendered on every change, so keep the choice here.
+  function storedShowDeleted() {
+    try { return localStorage.getItem("showDeleted") === "1"; } catch { return false; }
+  }
+
+  function initShowDeleted() {
+    const list = document.getElementById("video-list");
+    const toggle = list && list.querySelector("[data-show-deleted]");
+    if (!toggle) return;
+    toggle.checked = storedShowDeleted();
+    list.classList.toggle("show-deleted", toggle.checked);
+    toggle.onchange = () => {
+      list.classList.toggle("show-deleted", toggle.checked);
+      try { localStorage.setItem("showDeleted", toggle.checked ? "1" : "0"); } catch { /* private mode */ }
+    };
+  }
+
+  function refresh() { tickCountdowns(); initSortables(); followLog(); initShowDeleted(); }
 
   document.addEventListener("DOMContentLoaded", () => { refresh(); toggleTypeFields(); });
   document.addEventListener("htmx:afterSettle", () => { refresh(); refreshIfStale(); });

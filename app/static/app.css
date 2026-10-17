@@ -61,6 +61,12 @@ button.link { background: none; border: none; color: var(--accent); cursor: poin
 .count.failed, .badge.failed { background: var(--err-soft); color: var(--err); }
 .count.unavailable, .badge.unavailable { background: var(--warn-soft); color: var(--warn); }
 .badge.pending { color: var(--muted); }
+.badge.deleted { color: var(--muted); border: 1px dashed var(--border); }
+#video-list:not(.show-deleted) .video.deleted { display: none; }
+.video.deleted { background: transparent; border-style: dashed; opacity: .6; }
+.video.deleted .thumb { filter: grayscale(1); }
+.video.deleted:hover { opacity: .9; }
+.list-toggle { margin-bottom: 8px; font-size: .9em; color: var(--muted); }
 .error-text { color: var(--err); font-size: .85em; }
 .progress { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; position: relative; }
 .progress .bar { height: 100%; background: var(--accent); transition: width .4s ease; }
@@ -99,8 +105,6 @@ legend { font-weight: 600; padding: 0 6px; }
 .picker-list { list-style: none; margin: 0 0 8px; padding: 0; max-height: 240px; overflow: auto; }
 .picker-list li { display: flex; justify-content: space-between; padding: 3px 0; }
 .inline { display: inline-flex; gap: 6px; align-items: center; }
-.ignored { list-style: none; padding: 0; }
-.ignored li { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
 .log { font-family: ui-monospace, monospace; font-size: .8em; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; height: 70vh; overflow: auto; white-space: pre-wrap; }
 .toast { position: fixed; bottom: 20px; right: 20px; max-width: 420px; background: var(--err); color: #fff; padding: 10px 14px; border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0, 0, 0, .2); }
 .danger-zone { border-color: var(--err); }

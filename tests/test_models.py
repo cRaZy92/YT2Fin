@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from app.models import IgnoredVideo, Mapping, SeasonBreak, Video, VideoStatus
+from app.models import Mapping, SeasonBreak, Video, VideoStatus
 
 
 def test_videos_ordered_by_position(session, make_mapping, add_video):
@@ -30,11 +30,10 @@ def test_deleting_mapping_cascades(session, make_mapping, add_video):
     mapping = make_mapping()
     video = add_video(mapping, "x")
     mapping.season_breaks.append(SeasonBreak(video_id=video.id))
-    mapping.ignored.append(IgnoredVideo(youtube_id="y", title="Y"))
     session.commit()
     session.delete(mapping)
     session.commit()
-    for model in (Video, SeasonBreak, IgnoredVideo):
+    for model in (Video, SeasonBreak):
         assert session.scalar(select(func.count()).select_from(model)) == 0
 
 

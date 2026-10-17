@@ -1,3 +1,19 @@
+{% if v.status == "deleted" %}
+<li class="video deleted" id="video-{{ v.id }}" data-video-id="{{ v.id }}">
+  <span class="drag" title="Drag to reorder">⠿{% if v.original_position %}<span class="orig" title="Original order: {{ v.original_position }}">#{{ v.original_position }}</span>{% endif %}</span>
+  <img class="thumb" loading="lazy" alt="" src="https://i.ytimg.com/vi/{{ v.youtube_id }}/mqdefault.jpg">
+  <div class="meta">
+    <div class="title">{% if mapping.type == "show" %}{{ v.display_title }}{% else %}<strong>{{ v.artist or "?" }}</strong> — {{ v.song or v.yt_title }}{% endif %}</div>
+    <div class="filename">Deleted: no file, no episode number. Sync won't add it back.</div>
+    <a class="yt-link" href="https://youtu.be/{{ v.youtube_id }}" target="_blank" rel="noopener">youtu.be/{{ v.youtube_id }}</a>
+  </div>
+  <div class="status"><span class="badge deleted">Deleted</span></div>
+  <div class="row-actions">
+    <button class="btn small ghost" hx-post="/videos/{{ v.id }}/restore" hx-target="#video-list" hx-swap="outerHTML"
+            title="Put it back here and download it again">Restore</button>
+  </div>
+</li>
+{% else %}
 <li class="video status-{{ v.status }}" id="video-{{ v.id }}" data-video-id="{{ v.id }}">
   <span class="drag" title="Drag to reorder">⠿{% if v.original_position %}<span class="orig" title="Original order: {{ v.original_position }}">#{{ v.original_position }}</span>{% endif %}</span>
   <img class="thumb" loading="lazy" alt="" src="https://i.ytimg.com/vi/{{ v.youtube_id }}/mqdefault.jpg">
@@ -27,12 +43,8 @@
     {% if v.status in ("failed", "unavailable") %}
     <button class="btn small" hx-post="/videos/{{ v.id }}/retry" hx-target="#video-list" hx-swap="outerHTML">Retry</button>
     {% endif %}
-    {% if mapping.playlist_url %}
-    <button class="btn small danger" hx-post="/videos/{{ v.id }}/delete" hx-vals='{"ignore": "on"}' hx-target="#video-list" hx-swap="outerHTML"
-            hx-confirm="Delete this video{{ ' and its files' if v.file_path }}? Sync will not add it back.">Delete</button>
-    {% else %}
     <button class="btn small danger" hx-post="/videos/{{ v.id }}/delete" hx-target="#video-list" hx-swap="outerHTML"
-            hx-confirm="Delete this video{{ ' and its files' if v.file_path }}?">Delete</button>
-    {% endif %}
+            hx-confirm="Delete this video{{ ' and its files' if v.file_path }}?{{ ' Sync will not add it back.' if mapping.playlist_url }} You can restore it from &quot;Show deleted&quot;.">Delete</button>
   </div>
 </li>
+{% endif %}

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from app.models import IgnoredVideo, MappingType, SeasonBreak, Video, VideoStatus
+from app.models import MappingType, SeasonBreak, Video, VideoStatus
 from app.sync import Syncer
 from app.ytdlp_client import Entry
 from tests.conftest import FakeNotifier, FakeWorker
@@ -68,20 +68,27 @@ def test_rename_music_video_validation(client, make_mapping, add_video):
     assert response.headers["HX-Retarget"] == f"#video-{video.id}" and "required" in response.text
 
 
-def test_delete_with_ignore(client, session, make_mapping, add_video):
+def test_delete_leaves_a_ghost_that_can_be_restored(client, app, session, make_mapping, add_video, fake_worker):
+    app.state.worker = fake_worker
     mapping = make_mapping(playlist_url=PLAYLIST)
     video_id = done(mapping, add_video, "a", "A").id
-    response = client.post(f"/videos/{video_id}/delete", data={"ignore": "on"})
+    response = client.post(f"/videos/{video_id}/delete")
     assert response.status_code == 200 and "No videos yet" in response.text
+    assert 'class="video deleted"' in response.text and "Show deleted (1)" in response.text
     session.expire_all()
-    assert session.get(Video, video_id) is None
-    assert session.scalars(select(IgnoredVideo)).one().youtube_id == "a"
-    page = client.get(f"/mappings/{mapping.id}").text
-    assert "Ignored videos (1)" in page
-    response = client.post(f"/mappings/{mapping.id}/ignored/a/unignore", follow_redirects=False)
-    assert response.status_code == 303
+    assert session.get(Video, video_id).status == VideoStatus.DELETED
+    assert "Show deleted (1)" in client.get(f"/mappings/{mapping.id}").text
+    assert fake_worker.cancelled == [video_id]
+    response = client.post(f"/videos/{video_id}/restore")
+    assert response.status_code == 200 and "data-show-deleted" not in response.text
     session.expire_all()
-    assert session.scalars(select(IgnoredVideo)).all() == []
+    assert session.get(Video, video_id).status == VideoStatus.PENDING and fake_worker.kicks == 1
+
+
+def test_restore_refuses_a_video_that_is_not_deleted(client, make_mapping, add_video):
+    video = add_video(make_mapping(), "a")
+    response = client.post(f"/videos/{video.id}/restore")
+    assert response.status_code == 422 and "not deleted" in response.text
 
 
 def test_retry_and_status(client, session, make_mapping, add_video):

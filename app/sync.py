@@ -5,12 +5,12 @@ import logging
 
 from sqlalchemy.orm import Session
 
+from app import organizer, ytdlp_client
 from app import settings as settings_mod
-from app import ytdlp_client
 from app.errors import ErrorKind
 from app.models import Mapping, MappingType, Video, VideoStatus
 from app.mvparse import parse_artist_song
-from app.services import ServiceError
+from app.services import ServiceError, max_len
 from app.timeutil import utcnow
 from app.ytdlp_client import DownloadFailed, Entry
 
@@ -23,29 +23,28 @@ def title_matches(title_filter: str | None, title: str) -> bool:
 
 
 def add_entries(session: Session, mapping: Mapping, entries: list[Entry], source: str) -> list[Video]:
-    """Append unseen entries at the end. Sync skips ignored ids; a manual add un-ignores them."""
-    existing = {v.youtube_id for v in mapping.videos}
-    ignored = {i.youtube_id: i for i in mapping.ignored}
+    """Append unseen entries at the end. Sync skips deleted videos; a manual add restores them in their slot."""
+    existing = {v.youtube_id: v for v in mapping.videos}
     next_position = max((v.position for v in mapping.videos), default=0) + 1
     # Original numbers never shrink after deletes, so they stay unique per mapping.
     next_original = max((v.original_position or 0 for v in mapping.videos), default=0) + 1
     added: list[Video] = []
     for entry in entries:
         if entry.youtube_id in existing:
+            ghost = existing[entry.youtube_id]
+            if source == "manual" and ghost.status == VideoStatus.DELETED:
+                ghost.status = VideoStatus.PENDING
+                added.append(ghost)
             continue
         if source == "sync" and not title_matches(mapping.title_filter, entry.title):
             continue  # one mapping per series: only titles containing the filter text
-        if entry.youtube_id in ignored:
-            if source == "sync":
-                continue
-            mapping.ignored.remove(ignored.pop(entry.youtube_id))
         video = Video(youtube_id=entry.youtube_id, yt_title=entry.title, channel=entry.channel,
                       position=next_position, original_position=next_original, source=source,
                       status=VideoStatus.PENDING)
         if mapping.type == MappingType.MUSIC_VIDEO:
             video.artist, video.song = parse_artist_song(entry.title, entry.channel)
         mapping.videos.append(video)
-        existing.add(entry.youtube_id)
+        existing[entry.youtube_id] = video
         next_position += 1
         next_original += 1
         added.append(video)
@@ -137,6 +136,8 @@ class Syncer:
             if mapping is None:
                 raise ServiceError("Mapping not found")
             added = add_entries(session, mapping, entries, source="manual")
+            if added:  # a restored video takes its old number back, so later files shift
+                organizer.apply(session, self.config.media_root, mapping, max_len(session))
         if added:
             self.notifier.list_changed(mapping_id)
             self.worker.kick()

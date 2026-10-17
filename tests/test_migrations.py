@@ -17,7 +17,7 @@ def tables(engine) -> set[str]:
 def test_fresh_database_is_migrated_to_head(tmp_path):
     engine = make_engine(tmp_path / "app.db")
     init_db(engine, tmp_path / "backups")
-    assert {"mappings", "videos", "season_breaks", "ignored_videos", "settings", "alembic_version"} <= tables(engine)
+    assert {"mappings", "videos", "season_breaks", "settings", "alembic_version"} <= tables(engine)
     assert db.current_revision(engine) == db.head_revision()
     assert not (tmp_path / "backups").exists()
 
@@ -179,6 +179,32 @@ def test_0007_adds_reverse_order_defaulting_to_false_for_existing_mappings(tmp_p
     init_db(engine)
     with engine.connect() as conn:
         assert conn.exec_driver_sql("SELECT reverse_order FROM mappings").scalar() == 0
+
+
+def test_0008_turns_ignored_videos_into_deleted_ghosts_at_the_end(tmp_path):
+    from alembic import command
+
+    engine = make_engine(tmp_path / "app.db")
+    config = db.alembic_config()
+    with db.migration_connection(engine) as conn:
+        config.attributes["connection"] = conn
+        command.upgrade(config, "0007")
+    with engine.begin() as conn:
+        conn.exec_driver_sql("INSERT INTO mappings (id, name, type, folder, enabled, overrides, created_at, include_shorts) "
+                             "VALUES (1, 'M', 'show', '/media/m', 1, '{}', '2026-01-01', 0), "
+                             "(2, 'N', 'show', '/media/n', 1, '{}', '2026-01-01', 0)")
+        conn.exec_driver_sql(
+            "INSERT INTO videos (id, mapping_id, youtube_id, yt_title, position, user_edited, status, attempts, "
+            "added_at, source) VALUES (1, 1, 'kept', 'Kept', 4, 0, 'done', 0, '2026-01-01', 'sync')")
+        conn.exec_driver_sql("INSERT INTO ignored_videos (mapping_id, youtube_id, title, ignored_at) VALUES "
+                             "(1, 'x', 'Gone X', '2026-01-02'), (1, 'y', '', '2026-01-03'), (2, 'z', 'Z', '2026-01-04')")
+    init_db(engine)
+    assert "ignored_videos" not in tables(engine)
+    with engine.connect() as conn:
+        rows = conn.exec_driver_sql(
+            "SELECT mapping_id, youtube_id, yt_title, position, status FROM videos ORDER BY mapping_id, position").all()
+    assert rows == [(1, "kept", "Kept", 4, "done"), (1, "x", "Gone X", 5, "deleted"), (1, "y", "", 6, "deleted"),
+                    (2, "z", "Z", 1, "deleted")]
 
 
 def test_0004_backfills_original_position_from_insertion_order(tmp_path):

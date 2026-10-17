@@ -1,7 +1,7 @@
 import pytest
 
 from app.errors import ErrorKind
-from app.models import IgnoredVideo, Mapping, MappingType, Video
+from app.models import Mapping, MappingType, Video, VideoStatus
 from app.services import ServiceError
 from app.sync import Syncer, add_entries
 from app.ytdlp_client import DownloadFailed, Entry
@@ -25,13 +25,14 @@ def test_add_entries_dedupes_within_batch(session, make_mapping):
     assert len(added) == 1 and len(mapping.videos) == 1
 
 
-def test_sync_skips_ignored_but_manual_add_unignores(session, make_mapping):
+def test_sync_skips_deleted_videos_but_a_manual_add_restores_them(session, make_mapping, add_video):
     mapping = make_mapping()
-    mapping.ignored.append(IgnoredVideo(youtube_id="x", title="X"))
-    session.commit()
+    add_video(mapping, "a")
+    ghost = add_video(mapping, "x", status=VideoStatus.DELETED)
+    add_video(mapping, "b")
     assert add_entries(session, mapping, [Entry("x", "X")], "sync") == []
-    added = add_entries(session, mapping, [Entry("x", "X")], "manual")
-    assert [v.youtube_id for v in added] == ["x"] and mapping.ignored == []
+    assert add_entries(session, mapping, [Entry("x", "X")], "manual") == [ghost]
+    assert (ghost.status, ghost.position, len(mapping.videos)) == (VideoStatus.PENDING, 2, 3)
 
 
 def test_music_entries_get_parsed_artist_song(session, make_mapping):
@@ -138,6 +139,6 @@ def test_videos_keep_their_original_order_number(session, config, make_mapping):
     assert [v.original_position for v in added] == [1, 2, 3]
     a, b, c = added
     services.reorder(session, config.media_root, mapping, [c.id, a.id, b.id])
-    services.delete_video(session, config.media_root, a, ignore=False)
+    services.delete_video(session, config.media_root, a)
     [d] = add_entries(session, mapping, [Entry("d", "D")], "manual")
-    assert {v.youtube_id: v.original_position for v in mapping.videos} == {"b": 2, "c": 3, "d": 4}
+    assert {v.youtube_id: v.original_position for v in mapping.videos} == {"a": 1, "b": 2, "c": 3, "d": 4}

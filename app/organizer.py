@@ -67,8 +67,10 @@ def mapping_dir(media_root: Path, mapping: Mapping) -> Path:
     return ensure_under_root(media_root, mapping.folder)
 
 
-def ordered_videos(mapping: Mapping) -> list[Video]:
-    return sorted(mapping.videos, key=lambda v: v.position)
+def ordered_videos(mapping: Mapping, include_deleted: bool = False) -> list[Video]:
+    """The mapping's videos in order; deleted ones (ghosts) only when asked for."""
+    videos = sorted(mapping.videos, key=lambda v: v.position)
+    return videos if include_deleted else [v for v in videos if v.status != VideoStatus.DELETED]
 
 
 def naming_items(mapping: Mapping) -> list[naming.NamingItem]:
