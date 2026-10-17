@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Iterable
 
 MODES = ("cleaned", "first_paragraph", "full", "none")
@@ -28,7 +29,8 @@ _DROP_LINE = re.compile(
     r"|\b(?:sponsor(?:ed|s)?|affiliate|patreon|merch|subscribe|membership|linktree)\b"
     r"|\b(?:use|promo|discount) code\b|\d+\s?% off\b|\bfree trial\b|\bjoin this channel\b|\blink in\b"
     r"|^\W*(?:timestamps|chapters)\b"
-    r"|\b(?:instagram|twitter|tiktok|discord|facebook|twitch|snapchat|threads)\b\s*[:|\-–]"
+    r"|^\W*support (?:me|us|the channel|this channel|the show|my work|our work)\b"
+    r"|\b(?:instagram|twitter|tiktok|discord|facebook|twitch|snapchat|threads|bluesky|reddit|mastodon)\b\s*[:|\-–]"
     r"|\b(?:supplied by|courtesy of|licensed (?:from|by|under)|stock footage)\b",
     re.IGNORECASE,
 )
@@ -48,9 +50,11 @@ def _is_junk(line: str, extra: list[str]) -> bool:
 def _cleaned(text: str, extra: list[str]) -> str:
     kept: list[str] = []
     for line in text.replace("\r\n", "\n").split("\n"):
-        if _FOOTER_START.search(line) or _FOOTER_ANYWHERE.search(line):
+        # Match on the NFKC form so "𝗦𝗼𝗰𝗶𝗮𝗹𝘀"-style fancy Unicode headings look like plain text; keep the original.
+        plain = unicodedata.normalize("NFKC", line)
+        if _FOOTER_START.search(plain) or _FOOTER_ANYWHERE.search(plain):
             break
-        if line.strip() and _is_junk(line, extra):
+        if line.strip() and _is_junk(plain, extra):
             continue
         kept.append(line.rstrip())
     out = re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).strip()

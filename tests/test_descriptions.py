@@ -77,3 +77,38 @@ def test_lines_without_letters_or_digits_are_dropped():
 def test_stock_footage_credit_lines_are_dropped():
     text = "We cover 3 photos with disturbing backstories...\n\n[Video] [Imagery] supplied by Getty Images."
     assert clean_description(text, "cleaned") == "We cover 3 photos with disturbing backstories..."
+
+
+def _bold(text: str) -> str:
+    """Unicode "fancy bold" letters, as some creators style their section headings."""
+    return "".join(chr(0x1D5D4 + ord(c) - 65) if "A" <= c <= "Z" else chr(0x1D5EE + ord(c) - 97) if "a" <= c <= "z"
+                   else c for c in text)
+
+
+def lemmino(style=lambda text: text) -> str:
+    return f"""As computers grow more powerful and complex, the plausibility of simulating an entire universe grows less absurd.
+
+{style("Credits, references, and more")}
+https://www.lemmi.no/p/simulated-reality
+
+{style("Support me on Patreon")}
+https://www.patreon.com/lemmino
+
+{style("Support the channel on YouTube")}
+https://www.youtube.com/c/lemmino/join
+
+{style("Socials")}
+Bluesky: https://bsky.app/profile/lemmi.no
+https://www.reddit.com/r/lemmino"""
+
+
+@pytest.mark.parametrize("text", [lemmino(), lemmino(_bold)], ids=["plain", "fancy-unicode"])
+def test_cleaned_drops_support_and_social_sections(text):
+    assert clean_description(text, "cleaned") == (
+        "As computers grow more powerful and complex, the plausibility of simulating an entire universe grows less absurd."
+    )
+
+
+def test_support_headings_go_even_without_a_link_and_fancy_text_we_keep_is_untouched():
+    text = f"{_bold('Episode 3')}: the long road home.\n\nSupport us on Patreon and get videos early!\nSupport the channel by sharing."
+    assert clean_description(text, "cleaned") == f"{_bold('Episode 3')}: the long road home."
