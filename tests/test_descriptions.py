@@ -112,3 +112,107 @@ def test_cleaned_drops_support_and_social_sections(text):
 def test_support_headings_go_even_without_a_link_and_fancy_text_we_keep_is_untouched():
     text = f"{_bold('Episode 3')}: the long road home.\n\nSupport us on Patreon and get videos early!\nSupport the channel by sharing."
     assert clean_description(text, "cleaned") == f"{_bold('Episode 3')}: the long road home."
+
+
+SABATON_HISTORY = """Today's episode is about a song that is not a Sabaton original, but a cover they did of Stan Ridgway's "Camouflage" from 1986.
+
+Check out Indy Neidell's channels:
+https://www.youtube.com/c/TimeGhostHistory
+
+Hosted by: Indy Neidell
+Written by: Markus Linke and Indy Neidell
+Directed by: Rickard Erixon and Indy Neidell
+Creative Producer: Rickard Erixon, Indy Neidell
+Set Design: Daniel Eriksson, Rickard Erixon,
+Post-Production Director: Marek Kamiński
+Sound Editor: Marek Kaminski
+Sources:
+Imperial War Museums: Q 42230, UNI 8312
+Colorizations:
+Mikołaj Uchman
+
+All music by: Sabaton
+
+An OnLion Entertainment GmbH and Stuffed Beaver LTD co-Production.
+
+© Stuffed Beaver LTD, 2022 - all rights reserved."""
+
+
+def test_cleaned_drops_production_credits_sources_and_copyright():
+    assert clean_description(SABATON_HISTORY, "cleaned") == (
+        "Today's episode is about a song that is not a Sabaton original, but a cover they did of "
+        'Stan Ridgway\'s "Camouflage" from 1986.'
+    )
+
+
+@pytest.mark.parametrize("line", [
+    "All music by: Sabaton", "Sources:", "Executive Producers: A, B", "Editor: Karolina",
+    "An OnLion Entertainment GmbH and Stuffed Beaver LTD co-Production.", "© Stuffed Beaver LTD, 2022",
+    "Copyright 2022 Acme. All rights reserved.",
+])
+def test_each_credit_or_copyright_line_starts_the_footer(line):
+    assert clean_description(f"The story.\n\n{line}\nMore credits", "cleaned") == "The story."
+
+
+def test_story_sentences_mentioning_roles_are_kept():
+    text = "The film was directed by a teenager.\n\nHis editor never saw the final cut."
+    assert clean_description(text, "cleaned") == text
+
+
+KURZGESAGT = """In July of 2026, 700 AI agents hacked the infrastructure of Hugging Face in order to solve a task.
+
+What exactly are AI agents, and how do they grow their "intelligence"?
+
+Support us on Patreon: https://kgs.link/patreon
+Its our biggest means of support and helps us continue covering topics like this. Thank youuuu and good night!
+
+Sources & further reading:
+https://sites.google.com/view/sources-ai-agents
+
+OUR CHANNELS
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+German: https://kgs.link/youtubeDE
+
+HOW CAN YOU SUPPORT US?
+This is how we make our living and it would be a pleasure if you support us!
+
+DISCUSSIONS & SOCIAL MEDIA
+TikTok: https://kgs.link/tiktok
+
+OUR VOICE
+The kurzgesagt voice is from
+https://kgs.link/youtube-voice
+
+OUR MUSIC ♬♪
+700+ minutes of kurzgesagt soundtracks by Epic Mountain:
+
+The soundtrack of this video:
+
+Additional Music: “Local Forecast - Elevator” by Kevin MacLeod
+
+You can find info on what subtitle files work on YouTube here:
+Thank you!
+
+Autumn Weddell, Doruk Tayli, Frank, Gneowen"""
+
+
+def test_cleaned_drops_the_kurzgesagt_support_line_and_everything_from_sources_on():
+    assert clean_description(KURZGESAGT, "cleaned") == (
+        "In July of 2026, 700 AI agents hacked the infrastructure of Hugging Face in order to solve a task.\n\n"
+        'What exactly are AI agents, and how do they grow their "intelligence"?'
+    )
+
+
+@pytest.mark.parametrize("heading", [
+    "Sources & further reading:", "Further reading:", "OUR CHANNELS", "HOW CAN YOU SUPPORT US?",
+    "DISCUSSIONS & SOCIAL MEDIA", "OUR VOICE", "OUR MUSIC ♬♪", "The soundtrack of this video:",
+    "Additional Music: “Local Forecast - Elevator” by Kevin MacLeod",
+    "You can find info on what subtitle files work on YouTube here:",
+])
+def test_kurzgesagt_style_section_headings_start_the_footer(heading):
+    assert clean_description(f"The story.\n\n{heading}\nAnything after", "cleaned") == "The story."
+
+
+def test_story_lines_about_support_or_music_are_kept():
+    text = "Our voice changes as we age.\n\nThe music of the spheres was an ancient idea, and it helps us make sense of orbits."
+    assert clean_description(text, "cleaned") == text
