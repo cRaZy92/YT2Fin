@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import yt_dlp
+from yt_dlp.postprocessor import MetadataParserPP
 
 from app.errors import ErrorKind, classify
 
@@ -186,6 +187,9 @@ def download_opts(settings: dict[str, Any], staging_dir: Path, cookiefile: Path 
             "sponsorblock_chapter_title": "[SponsorBlock]: %(category_names)l",
             "force_keyframes": False,
         })
+    # Blank the embedded description: Jellyfin falls back to it whenever the NFO's cleaned <plot> is empty.
+    pps.append({"key": "MetadataParser", "when": "pre_process", "actions": [
+        (MetadataParserPP.interpretter, "", f"(?P<meta_{field}>)") for field in ("description", "synopsis")]})
     pps.append({"key": "FFmpegMetadata", "add_metadata": True, "add_chapters": True})
     if settings["subtitles"] == "embed":
         pps.append({"key": "FFmpegEmbedSubtitle", "already_have_subtitle": False})

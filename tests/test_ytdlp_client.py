@@ -28,7 +28,7 @@ def test_build_format_preferred_codec_first():
 def test_download_opts_defaults(tmp_path):
     opts = ytdlp_client.download_opts(opts_for(), tmp_path, None, lambda d: None, lambda d: None)
     keys = [pp["key"] for pp in opts["postprocessors"]]
-    assert keys == ["FFmpegThumbnailsConvertor", "FFmpegVideoRemuxer", "FFmpegMetadata"]
+    assert keys == ["FFmpegThumbnailsConvertor", "FFmpegVideoRemuxer", "MetadataParser", "FFmpegMetadata"]
     assert opts["outtmpl"] == str(tmp_path / "media.%(ext)s")
     assert opts["merge_output_format"] == "mkv"
     assert opts["writethumbnail"] is True
@@ -51,6 +51,18 @@ def test_download_opts_all_features(tmp_path):
     assert opts["sleep_interval"] == 5 and opts["max_sleep_interval"] == 10
     assert opts["cookiefile"] == str(cookie)
     assert opts["merge_output_format"] == "mp4"
+
+
+def test_embedded_description_is_blanked_so_jellyfin_cannot_fall_back_to_it(tmp_path):
+    opts = ytdlp_client.download_opts(opts_for(), tmp_path, None, lambda d: None, lambda d: None)
+    parser = next(pp for pp in opts["postprocessors"] if pp["key"] == "MetadataParser")
+    ydl = yt_dlp.YoutubeDL({"quiet": True})
+    pp = yt_dlp.postprocessor.MetadataParserPP(ydl, parser["actions"])
+    _, info = pp.run({"id": "x", "description": "OUR CHANNELS https://kgs.link/youtubeDE"})
+    assert info["meta_description"] == "" and info["meta_synopsis"] == ""
+    args = [a for pair in yt_dlp.postprocessor.FFmpegMetadataPP(ydl)._get_metadata_opts(info) for a in pair]
+    assert "description=" in args and "synopsis=" in args
+    assert not any("kgs.link" in a for a in args)
 
 
 def test_download_opts_embed_subtitles(tmp_path):

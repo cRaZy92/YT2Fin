@@ -216,3 +216,34 @@ def test_kurzgesagt_style_section_headings_start_the_footer(heading):
 def test_story_lines_about_support_or_music_are_kept():
     text = "Our voice changes as we age.\n\nThe music of the spheres was an ancient idea, and it helps us make sense of orbits."
     assert clean_description(text, "cleaned") == text
+
+
+BAR = "▀" * 26
+KURZGESAGT_OLD = f"""OUR CHANNELS {BAR} German Channel: https://kgs.link/youtubeDE Spanish Channel: https://kgs.link/youtubeES
+
+HOW CAN YOU SUPPORT US? {BAR} This is how we make our living and it would be a pleasure if you support us!
+
+Get Merch designed with ❤ from https://kgs.link/shop
+Join the Patreon Bird Army 🐧 https://kgs.link/patreon
+
+The Soundtrack of this video:
+
+Thanks a lot to Matthew Lloyd for fact checking help with the video!
+
+🐦🐧🐤 PATREON BIRD ARMY 🐤🐧🐦 {BAR} Many Thanks to our wonderful Patreons who support us every month:
+
+Stuart Alldritt, Tasia Pele, Stan Serebryakov
+
+SOURCES {BAR}
+
+Data and Goliath: The Hidden Battles to Collect Your Data and Control Your World by Bruce Schneier
+
+Help us caption & translate this video!
+
+A New History for Humanity – The Human Era"""
+
+
+@pytest.mark.parametrize("text", [KURZGESAGT_OLD, KURZGESAGT_OLD.replace(f" {BAR} ", f"\n{BAR}\n")],
+                         ids=["inline-bars", "bars-on-own-line"])
+def test_old_kurzgesagt_description_that_is_all_footer_cleans_to_nothing(text):
+    assert clean_description(text, "cleaned") is None
