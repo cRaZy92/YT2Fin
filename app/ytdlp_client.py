@@ -80,6 +80,14 @@ class VideoInfo:
         )
 
 
+@dataclass
+class ShowInfo:
+    """Show-level metadata of a playlist or channel, plus the channel's image URLs by artwork kind."""
+    description: str | None
+    channel: str | None
+    images: dict[str, str]
+
+
 class _Logger:
     """Routes yt-dlp output into Python logging (and so into the live log view)."""
 
@@ -261,6 +269,51 @@ def fetch_source_entries(url: str, settings: dict[str, Any], cookiefile: Path | 
             raise
         entries.extend(reversed(tab))  # YouTube lists newest first
     return entries
+
+
+def channel_images(thumbnails: list[dict[str, Any]] | None) -> dict[str, str]:
+    """Avatar as poster, full 16:9 channel art as backdrop (fanart), widest cropped strip as banner."""
+    images: dict[str, str] = {}
+    strips: list[tuple[int, str]] = []
+    for thumb in thumbnails or []:
+        url, tid = thumb.get("url"), str(thumb.get("id", ""))
+        if not url:
+            continue
+        if tid == "avatar_uncropped":
+            images["poster"] = url
+        elif tid == "banner_uncropped":
+            images["fanart"] = url
+        elif (thumb.get("width") or 0) > 3 * (thumb.get("height") or 10**9):
+            strips.append((thumb["width"], url))
+    if strips:
+        images["banner"] = max(strips)[1]
+    return images
+
+
+def _tab_info(url: str, settings: dict[str, Any], cookiefile: Path | None) -> dict[str, Any]:
+    """Page-level metadata of a playlist or channel without listing its videos."""
+    opts = common_opts(settings, cookiefile) | {"extract_flat": "in_playlist", "skip_download": True,
+                                                "playlist_items": "0"}
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            return ydl.extract_info(url, download=False) or {}
+    except yt_dlp.utils.YoutubeDLError as exc:
+        message = _clean_message(str(exc))
+        raise DownloadFailed(classify(message), message) from exc
+
+
+def fetch_show_info(url: str, settings: dict[str, Any], cookiefile: Path | None) -> ShowInfo:
+    """Description, channel name and channel images; a playlist also needs its channel's page."""
+    if is_channel_url(url):
+        page = channel = _tab_info(_CHANNEL_URL.match(url.strip()).group("base"), settings, cookiefile)
+    else:
+        page = _tab_info(url, settings, cookiefile)
+        channel = _tab_info(page["channel_url"], settings, cookiefile) if page.get("channel_url") else {}
+    return ShowInfo(
+        description=page.get("description") or channel.get("description") or None,
+        channel=page.get("channel") or page.get("uploader") or channel.get("channel"),
+        images=channel_images(channel.get("thumbnails")),
+    )
 
 
 def collect_outputs(staging_dir: Path) -> tuple[Path | None, list[Path]]:

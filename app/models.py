@@ -44,6 +44,12 @@ class Mapping(Base):
     description_mode: Mapped[str] = mapped_column(String(20), default="cleaned", server_default="cleaned")
     description_remove: Mapped[str | None] = mapped_column(Text, default=None)  # extra "remove lines containing"
     overrides: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    # Show-level metadata from the playlist/channel page, refreshed by sync now and then
+    channel_name: Mapped[str | None] = mapped_column(String(300), default=None)
+    source_description: Mapped[str | None] = mapped_column(Text, default=None)
+    show_info_checked_at: Mapped[datetime | None] = mapped_column(default=None)
+    # Show images this app placed in the folder: {kind: {"source": ..., "file": ..., "url": ...}}
+    artwork: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
     videos: Mapped[list[Video]] = relationship(

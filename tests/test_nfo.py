@@ -42,3 +42,18 @@ def test_musicvideo_nfo():
 
 def test_tvshow_nfo():
     assert "<title>My Show</title>" in tvshow_nfo("My Show")
+
+
+def test_tvshow_nfo_with_show_info():
+    root = ET.fromstring(tvshow_nfo("S", plot="About", studio="Chan", premiered="20190305").split("?>", 1)[1])
+    assert [root.findtext(t) for t in ("title", "plot", "studio", "premiered", "year")] == [
+        "S", "About", "Chan", "2019-03-05", "2019"]
+
+
+def test_runtime_and_studio_in_episode_and_musicvideo():
+    ep = ET.fromstring(episode_nfo(title="T", show_title="S", season=1, episode=1, plot=None, aired=None,
+                                   youtube_id="x", runtime=754, studio="Chan").split("\n", 1)[1])
+    assert (ep.findtext("runtime"), ep.findtext("studio")) == ("13", "Chan")
+    mv = ET.fromstring(musicvideo_nfo(title="S", artist="A", plot=None, premiered=None, youtube_id="y",
+                                      runtime=20, studio="Label").split("\n", 1)[1])
+    assert (mv.findtext("runtime"), mv.findtext("studio")) == ("1", "Label")

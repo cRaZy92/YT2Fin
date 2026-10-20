@@ -10,6 +10,15 @@ from app.db import init_db, make_engine, make_session_factory
 from app.models import Mapping, MappingType, Video
 
 
+@pytest.fixture(autouse=True)
+def no_show_info_network(monkeypatch):
+    """Sync also reads show info and channel images; tests that need them inject fakes into the Syncer."""
+    from app import artwork, ytdlp_client
+
+    monkeypatch.setattr(ytdlp_client, "fetch_show_info", lambda *a: ytdlp_client.ShowInfo(None, None, {}))
+    monkeypatch.setattr(artwork, "download_image", lambda url: pytest.fail(f"unexpected image download {url}"))
+
+
 @pytest.fixture
 def config(tmp_path: Path) -> AppConfig:
     media = tmp_path / "media"

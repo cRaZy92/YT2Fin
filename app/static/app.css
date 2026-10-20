@@ -133,3 +133,16 @@ legend { font-weight: 600; padding: 0 6px; }
 .stat-value { font-weight: 600; font-size: 1.05em; }
 .stat-label { font-size: .75em; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .stat.failed .stat-value { color: var(--err); }
+.artwork summary { cursor: pointer; font-weight: 600; }
+.art-grid { display: grid; grid-template-columns: 160px minmax(0, 1fr) minmax(0, 1.6fr); gap: 16px; margin-top: 12px; align-items: end; }
+.art-tile { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.art-tile img, .art-empty { width: 100%; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); object-fit: cover; display: block; }
+.art-poster img, .art-poster .art-empty { aspect-ratio: 1 / 1; }
+.art-fanart img, .art-fanart .art-empty { aspect-ratio: 16 / 9; }
+.art-banner img, .art-banner .art-empty { aspect-ratio: 6 / 1; }
+.art-empty { display: flex; align-items: center; justify-content: center; font-size: .85em; border-style: dashed; }
+.art-meta { font-size: .85em; }
+.art-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.art-actions form { margin: 0; }
+.art-refresh { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+@media (max-width: 760px) { .art-grid { grid-template-columns: 1fr 1fr; } .art-banner { grid-column: 1 / -1; } }

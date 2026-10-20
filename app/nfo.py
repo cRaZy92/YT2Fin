@@ -42,15 +42,25 @@ def is_ours(text: str) -> bool:
     return root.tag == "tvshow" and [child.tag for child in root] == ["title"]
 
 
-def tvshow_nfo(title: str) -> str:
+def runtime_minutes(seconds: int | None) -> int | None:
+    return max(1, round(seconds / 60)) if seconds else None
+
+
+def tvshow_nfo(title: str, *, plot: str | None = None, studio: str | None = None,
+               premiered: str | None = None) -> str:
     root = ET.Element("tvshow")
     root.append(ET.Comment(f" {MARKER} "))
+    date = format_date(premiered)
     _add(root, "title", title)
+    _add(root, "plot", plot)
+    _add(root, "studio", studio)
+    _add(root, "premiered", date)
+    _add(root, "year", date[:4] if date else None)
     return _render(root)
 
 
 def episode_nfo(*, title: str, show_title: str, season: int, episode: int, plot: str | None,
-                aired: str | None, youtube_id: str) -> str:
+                aired: str | None, youtube_id: str, runtime: int | None = None, studio: str | None = None) -> str:
     root = ET.Element("episodedetails")
     _add(root, "title", title)
     _add(root, "showtitle", show_title)
@@ -58,11 +68,14 @@ def episode_nfo(*, title: str, show_title: str, season: int, episode: int, plot:
     _add(root, "episode", episode)
     _add(root, "plot", plot)
     _add(root, "aired", format_date(aired))
+    _add(root, "runtime", runtime_minutes(runtime))
+    _add(root, "studio", studio)
     _uniqueid(root, youtube_id)
     return _render(root)
 
 
-def musicvideo_nfo(*, title: str, artist: str, plot: str | None, premiered: str | None, youtube_id: str) -> str:
+def musicvideo_nfo(*, title: str, artist: str, plot: str | None, premiered: str | None, youtube_id: str,
+                   runtime: int | None = None, studio: str | None = None) -> str:
     root = ET.Element("musicvideo")
     date = format_date(premiered)
     _add(root, "title", title)
@@ -70,5 +83,7 @@ def musicvideo_nfo(*, title: str, artist: str, plot: str | None, premiered: str 
     _add(root, "plot", plot)
     _add(root, "premiered", date)
     _add(root, "year", date[:4] if date else None)
+    _add(root, "runtime", runtime_minutes(runtime))
+    _add(root, "studio", studio)
     _uniqueid(root, youtube_id)
     return _render(root)

@@ -142,3 +142,50 @@ def test_videos_keep_their_original_order_number(session, config, make_mapping):
     services.delete_video(session, config.media_root, a)
     [d] = add_entries(session, mapping, [Entry("d", "D")], "manual")
     assert {v.youtube_id: v.original_position for v in mapping.videos} == {"a": 1, "b": 2, "c": 3, "d": 4}
+
+
+JPG = b"\xff\xd8\xff\xe0 jpeg"
+
+
+async def test_sync_reads_show_info_and_downloads_channel_art_once_a_week(
+        session, session_factory, config, notifier, fake_worker, make_mapping):
+    from datetime import timedelta
+    from pathlib import Path
+
+    from app.ytdlp_client import ShowInfo
+
+    mapping = make_mapping(playlist_url=URL)
+    shows, images = [], []
+    info = ShowInfo("About the show", "Chan", {"poster": "https://img/avatar", "fanart": "https://img/art"})
+    syncer = Syncer(session_factory, config, fake_worker, notifier, fetch=lambda *a: [],
+                    fetch_show=lambda *a: shows.append(a[0]) or info,
+                    fetch_image=lambda url: images.append(url) or JPG)
+    await syncer.sync(mapping.id)
+    folder = Path(mapping.folder)
+    assert (folder / "poster.jpg").read_bytes() == JPG and (folder / "fanart.jpg").read_bytes() == JPG
+    nfo = (folder / "tvshow.nfo").read_text()
+    assert "<plot>About the show</plot>" in nfo and "<studio>Chan</studio>" in nfo
+
+    await syncer.sync(mapping.id)  # checked recently: no second fetch
+    assert shows == [URL] and len(images) == 2
+    with session_factory() as s:
+        m = s.get(Mapping, mapping.id)
+        m.show_info_checked_at -= timedelta(days=8)
+        s.commit()
+    await syncer.sync(mapping.id)  # stale: info read again, but unchanged images aren't re-downloaded
+    assert shows == [URL, URL] and len(images) == 2
+    await syncer.refresh_show_info(mapping.id)  # explicit refresh re-downloads
+    assert len(images) == 4
+
+
+async def test_show_info_failure_does_not_fail_the_sync(session, session_factory, config, notifier, fake_worker,
+                                                        make_mapping):
+    def failing(*a):
+        raise DownloadFailed(ErrorKind.TRANSIENT, "nope")
+
+    mapping = make_mapping(playlist_url=URL)
+    syncer = Syncer(session_factory, config, fake_worker, notifier, fetch=lambda *a: [Entry("a", "A")],
+                    fetch_show=failing)
+    assert await syncer.sync(mapping.id) == 1
+    session.expire_all()
+    assert session.get(Mapping, mapping.id).show_info_checked_at is None  # retried next time

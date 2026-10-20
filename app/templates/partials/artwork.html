@@ -1,0 +1,35 @@
+<details class="panel artwork"{% if not art|selectattr("version")|list %} open{% endif %}>
+  <summary>Artwork <span class="muted">· poster, backdrop and banner Jellyfin shows for this series</span></summary>
+  <div class="art-grid">
+    {% for t in art %}
+    <div class="art-tile art-{{ t.kind }}">
+      {% if t.version %}
+      <a href="/mappings/{{ mapping.id }}/artwork/{{ t.kind }}?v={{ t.version }}" target="_blank" rel="noopener">
+        <img src="/mappings/{{ mapping.id }}/artwork/{{ t.kind }}?v={{ t.version }}" alt="{{ t.label }}" loading="lazy">
+      </a>
+      {% else %}
+      <div class="art-empty muted">No {{ t.label|lower }}</div>
+      {% endif %}
+      <div class="art-meta"><strong>{{ t.label }}</strong> <span class="muted">{{ t.source }}</span></div>
+      <div class="art-actions">
+        <form method="post" action="/mappings/{{ mapping.id }}/artwork/{{ t.kind }}" enctype="multipart/form-data">
+          <label class="btn ghost small">Upload…
+            <input type="file" name="file" accept="image/jpeg,image/png,image/webp" hidden onchange="this.form.submit()">
+          </label>
+        </form>
+        {% if t.custom %}
+        <form method="post" action="/mappings/{{ mapping.id }}/artwork/{{ t.kind }}/reset">
+          <button class="btn ghost small">{{ "Use channel image" if mapping.playlist_url else "Remove" }}</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if mapping.playlist_url %}
+  <form method="post" action="/mappings/{{ mapping.id }}/artwork/refresh" class="art-refresh">
+    <button class="btn ghost small">Re-download from YouTube</button>
+    <span class="hint">Channel images and the show description are refreshed automatically once a week.</span>
+  </form>
+  {% endif %}
+</details>

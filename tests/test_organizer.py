@@ -245,3 +245,25 @@ def test_disk_space_reports_free_and_total(tmp_path):
 
 def test_disk_space_is_none_for_a_missing_folder(tmp_path):
     assert organizer.disk_space(tmp_path / "missing") is None
+
+
+def test_tvshow_nfo_gets_channel_description_studio_and_first_air_date(session, config, make_mapping, done_video):
+    mapping = make_mapping(source_description="About.\n\nFollow me: https://x.example", description_mode="first_paragraph")
+    done_video(mapping, "a", "x/a.mkv", title="A", upload_date="20210102", channel="Chan")
+    done_video(mapping, "b", "x/b.mkv", title="B", upload_date="20200101", channel="Chan", duration=600)
+    apply(session, config, mapping)
+    folder = Path(mapping.folder)
+    show = (folder / "tvshow.nfo").read_text()
+    assert "<plot>About.</plot>" in show and "<studio>Chan</studio>" in show and "<premiered>2020-01-01" in show
+    episode = (folder / "Season 01" / "My Show S01E02 B.nfo").read_text()
+    assert "<runtime>10</runtime>" in episode and "<studio>Chan</studio>" in episode
+
+
+def test_episode_poster_is_recorded_and_removed_with_the_mapping(session, config, make_mapping, done_video):
+    mapping = make_mapping()
+    done_video(mapping, "a", "x/a.mkv", title="A")
+    apply(session, config, mapping)
+    session.expire_all()
+    assert mapping.artwork["poster"]["source"] == "episode"
+    organizer.delete_mapping_files(config.media_root, mapping)
+    assert not (Path(mapping.folder) / "poster.jpg").exists()

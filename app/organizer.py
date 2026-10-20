@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from datetime import UTC, datetime
 import os
 import re
@@ -12,7 +13,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import descriptions, naming, nfo
+from app import artwork, descriptions, naming, nfo
 from app.models import Mapping, MappingType, Video, VideoStatus
 from app.timeutil import utcnow
 
@@ -184,6 +185,8 @@ def apply(session: Session, media_root: Path, mapping: Mapping, max_len: int) ->
     _backfill_sizes(session, folder, mapping)
     _write_metadata(folder, mapping)
     _remove_empty_dirs(folder)
+    if session.is_modified(mapping):  # the fallback poster got recorded
+        session.commit()
 
 
 def _backfill_sizes(session: Session, folder: Path, mapping: Mapping) -> None:
@@ -209,6 +212,24 @@ def _write_if_changed(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def show_studio(mapping: Mapping) -> str | None:
+    """The channel; for a manual list the channel most of its videos come from."""
+    if mapping.channel_name:
+        return mapping.channel_name
+    channels = Counter(v.channel for v in ordered_videos(mapping) if v.channel)
+    return channels.most_common(1)[0][0] if channels else None
+
+
+def _tvshow_content(mapping: Mapping, remove_terms: list[str]) -> str:
+    dates = [v.upload_date for v in ordered_videos(mapping) if v.upload_date and v.status != VideoStatus.UNAVAILABLE]
+    return nfo.tvshow_nfo(
+        mapping.show_title or mapping.name,
+        plot=descriptions.clean_description(mapping.source_description, mapping.description_mode, remove_terms),
+        studio=show_studio(mapping),
+        premiered=min(dates, default=None),
+    )
+
+
 def _write_metadata(folder: Path, mapping: Mapping) -> None:
     show_title = mapping.show_title or mapping.name
     is_show = mapping.type == MappingType.SHOW
@@ -218,7 +239,7 @@ def _write_metadata(folder: Path, mapping: Mapping) -> None:
         tvshow = folder / "tvshow.nfo"
         # Never clobber a tvshow.nfo someone else wrote (a curated one, or Jellyfin's own).
         if not tvshow.exists() or nfo.is_ours(tvshow.read_text(encoding="utf-8", errors="replace")):
-            _write_if_changed(tvshow, nfo.tvshow_nfo(show_title))
+            _write_if_changed(tvshow, _tvshow_content(mapping, remove_terms))
     for video in ordered_videos(mapping):
         if video.status != VideoStatus.DONE or not video.file_path:
             continue
@@ -231,12 +252,14 @@ def _write_metadata(folder: Path, mapping: Mapping) -> None:
                 title=video.display_title, show_title=show_title, season=season, episode=episode,
                 plot=descriptions.clean_description(video.description, mapping.description_mode, remove_terms),
                 aired=video.upload_date, youtube_id=video.youtube_id,
+                runtime=video.duration, studio=video.channel,
             )
         else:
             content = nfo.musicvideo_nfo(
                 title=video.song or video.display_title, artist=video.artist or "",
                 plot=descriptions.clean_description(video.description, mapping.description_mode, remove_terms),
                 premiered=video.upload_date, youtube_id=video.youtube_id,
+                runtime=video.duration, studio=video.channel,
             )
         _write_if_changed(media.with_suffix(".nfo"), content)
     if is_show:
@@ -244,7 +267,8 @@ def _write_metadata(folder: Path, mapping: Mapping) -> None:
 
 
 def _ensure_poster(folder: Path, mapping: Mapping) -> None:
-    if any((folder / f"poster{ext}").exists() for ext in THUMB_EXTS):
+    """Until the channel avatar arrives (or for a manual list), the first episode's thumbnail is the poster."""
+    if artwork.current_file(folder, mapping, "poster") is not None:
         return
     for video in ordered_videos(mapping):
         if video.status != VideoStatus.DONE or not video.file_path:
@@ -252,7 +276,7 @@ def _ensure_poster(folder: Path, mapping: Mapping) -> None:
         media = folder / video.file_path
         thumb = media.with_name(media.stem + "-thumb.jpg")
         if thumb.exists():
-            shutil.copyfile(thumb, folder / "poster.jpg")
+            artwork.install(folder, mapping, "poster", thumb.read_bytes(), artwork.EPISODE, ext=".jpg")
             return
 
 
@@ -308,7 +332,7 @@ def delete_mapping_files(media_root: Path, mapping: Mapping) -> None:
         return
     for video in mapping.videos:
         delete_video_files(media_root, mapping, video)
-    for name in ("tvshow.nfo", "poster.jpg"):
+    for name in {"tvshow.nfo", "poster.jpg", *artwork.owned_files(mapping)}:
         (folder / name).unlink(missing_ok=True)
     _remove_empty_dirs(folder)
     if not any(folder.iterdir()):

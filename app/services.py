@@ -104,7 +104,11 @@ def _validate(data: MappingInput) -> dict[str, Any]:
 
 def _assign(mapping: Mapping, data: MappingInput, overrides: dict[str, Any]) -> None:
     mapping.name = data.name.strip()
-    mapping.playlist_url = (data.playlist_url or "").strip() or None
+    playlist_url = (data.playlist_url or "").strip() or None
+    if playlist_url != mapping.playlist_url:
+        # another source: read its description and channel again on the next sync
+        mapping.channel_name = mapping.source_description = mapping.show_info_checked_at = None
+    mapping.playlist_url = playlist_url
     mapping.show_title = ((data.show_title or "").strip() or mapping.name) if data.type == MappingType.SHOW else None
     mapping.enabled = data.enabled
     mapping.sync_interval_minutes = data.sync_interval_minutes

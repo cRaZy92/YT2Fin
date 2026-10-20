@@ -73,6 +73,12 @@ YouTube restricts IPs that download a lot, for example during a big channel back
 
 - Sync only **adds** new playlist videos at the end. Your order, renames, season breaks and removals
   always win. Deleting a video from a playlist-backed mapping remembers it as *ignored*.
+- Show folders get the channel's avatar as `poster`, its full channel art as the `fanart` backdrop and the
+  cropped strip as `banner`, plus a `tvshow.nfo` with the playlist/channel description, the channel as studio
+  and the first air date. These are refreshed weekly. Upload your own images in the mapping's Artwork panel;
+  an uploaded image (or one you put in the folder yourself) is never overwritten. Manual lists use the first
+  episode's thumbnail as poster.
+- Episode and music video NFOs include the runtime and the channel as studio.
 - Episode numbers follow the list order. Reordering, deleting or adding a season break renames the
   files on disk. Unavailable videos don't use up a number.
 - Downloads are throttled with a random delay (default 30–90 s) and request pacing. On HTTP 429 or

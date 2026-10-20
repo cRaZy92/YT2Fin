@@ -252,3 +252,38 @@ def test_po_token_provider_is_passed_to_yt_dlp_when_configured(monkeypatch):
     ytdlp_client.configure(pot_provider_url="http://pot-provider:4416")
     assert ytdlp_client.common_opts(opts_for(), None)["extractor_args"] == {
         "youtubepot-bgutilhttp": {"base_url": ["http://pot-provider:4416"]}}
+
+
+CHANNEL_THUMBS = [
+    {"id": "0", "url": "https://img/strip-small", "width": 1060, "height": 175},
+    {"id": "5", "url": "https://img/strip-big", "width": 2560, "height": 424},
+    {"id": "banner_uncropped", "url": "https://img/art"},
+    {"id": "7", "url": "https://img/avatar-900", "width": 900, "height": 900},
+    {"id": "avatar_uncropped", "url": "https://img/avatar"},
+]
+
+
+def test_channel_images_pick_avatar_full_art_and_widest_strip():
+    assert ytdlp_client.channel_images(CHANNEL_THUMBS) == {
+        "poster": "https://img/avatar", "fanart": "https://img/art", "banner": "https://img/strip-big"}
+    assert ytdlp_client.channel_images(None) == {}
+
+
+REAL_FETCH_SHOW_INFO = ytdlp_client.fetch_show_info  # conftest stubs the module attribute in every test
+
+
+def test_fetch_show_info_reads_a_playlists_channel_page_for_images(monkeypatch):
+    pages = {
+        "https://www.youtube.com/playlist?list=PL": {"description": "Playlist about", "channel": "Chan",
+                                                     "channel_url": "https://www.youtube.com/channel/UC1"},
+        "https://www.youtube.com/channel/UC1": {"description": "Channel about", "thumbnails": CHANNEL_THUMBS},
+        "https://www.youtube.com/@Chan": {"description": "", "channel": "Chan", "thumbnails": CHANNEL_THUMBS},
+    }
+    calls = []
+    monkeypatch.setattr(ytdlp_client, "_tab_info", lambda url, s, c: calls.append(url) or pages[url])
+    info = REAL_FETCH_SHOW_INFO("https://www.youtube.com/playlist?list=PL", opts_for(), None)
+    assert (info.description, info.channel, info.images["poster"]) == ("Playlist about", "Chan", "https://img/avatar")
+    calls.clear()
+    info = REAL_FETCH_SHOW_INFO("https://www.youtube.com/@Chan/videos", opts_for(), None)
+    assert (info.description, info.channel, info.images["fanart"]) == (None, "Chan", "https://img/art")
+    assert calls == ["https://www.youtube.com/@Chan"]

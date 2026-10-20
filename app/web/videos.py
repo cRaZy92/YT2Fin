@@ -10,6 +10,7 @@ from app import naming, organizer, services
 from app import settings as settings_mod
 from app.models import Mapping, MappingType, Video, VideoStatus
 from app.services import ServiceError
+from app.web.artwork_page import artwork_context
 from app.web.deps import SessionDep, get_or_404, render
 from app.ytdlp_client import DownloadFailed, is_channel_url
 
@@ -79,6 +80,7 @@ async def detail(request: Request, mapping_id: int, session: SessionDep):
         "syncing": mapping_id in request.app.state.syncer.running,
         "is_channel": bool(mapping.playlist_url) and is_channel_url(mapping.playlist_url),
         "s": services.mapping_stats(session).get(mapping_id, services.EMPTY_STATS),
+        "art": artwork_context(_media_root(request), mapping),
     }
     return render(request, "mapping_detail.html", context)
 

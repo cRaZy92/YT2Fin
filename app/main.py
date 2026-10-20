@@ -28,7 +28,7 @@ from app.sync import Syncer
 from app.templating import templates
 from app.timeutil import utcnow
 from app.updater import Updater
-from app.web import dashboard, mappings, settings_page, sse, videos
+from app.web import artwork_page, dashboard, mappings, settings_page, sse, videos
 from app.worker import Worker
 
 log = logging.getLogger(__name__)
@@ -170,6 +170,6 @@ def create_app(config: AppConfig | None = None, *, start_background: bool = True
         return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=exc.headers)
 
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-    for module in (dashboard, sse, mappings, videos, settings_page):
+    for module in (dashboard, sse, mappings, videos, artwork_page, settings_page):
         app.include_router(module.router)
     return app
