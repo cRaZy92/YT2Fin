@@ -79,7 +79,7 @@
 
   // "Show deleted" on a mapping's list: the list is re-rendered on every change, so keep the choice here.
   function storedShowDeleted() {
-    try { return localStorage.getItem("showDeleted") === "1"; } catch { return false; }
+    try { return localStorage.getItem("showDeleted") !== "0"; } catch { return true; }
   }
 
   function initShowDeleted() {

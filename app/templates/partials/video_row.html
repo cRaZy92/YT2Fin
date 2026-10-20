@@ -43,8 +43,7 @@
     {% if v.status in ("failed", "unavailable") %}
     <button class="btn small" hx-post="/videos/{{ v.id }}/retry" hx-target="#video-list" hx-swap="outerHTML">Retry</button>
     {% endif %}
-    <button class="btn small danger" hx-post="/videos/{{ v.id }}/delete" hx-target="#video-list" hx-swap="outerHTML"
-            hx-confirm="Delete this video{{ ' and its files' if v.file_path }}?{{ ' Sync will not add it back.' if mapping.playlist_url }} You can restore it from &quot;Show deleted&quot;.">Delete</button>
+    <button class="btn small danger" hx-post="/videos/{{ v.id }}/delete" hx-target="#video-list" hx-swap="outerHTML">Delete</button>
   </div>
 </li>
 {% endif %}
