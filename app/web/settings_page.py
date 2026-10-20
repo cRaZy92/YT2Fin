@@ -18,7 +18,7 @@ from app import settings as settings_mod
 from app import updater as updater_mod
 from app.models import Mapping
 from app.settings import SettingsError
-from app.web.deps import SessionDep, render
+from app.web.deps import SessionDep, render, spawn
 
 router = APIRouter()
 
@@ -63,6 +63,7 @@ def _page(request: Request, session, *, values=None, error=None, status_code=200
         "ytdlp_installed": _installed_version(),
         "last_update": updater.last_result,
         "last_checked": updater.last_checked_at,
+        "stripper": request.app.state.stripper,
         "pot_status": pot_status,
         "pot_url": config.pot_provider_url,
         "cookies_present": cookie_file is not None,
@@ -128,3 +129,12 @@ async def delete_cookies(request: Request):
 @router.post("/settings/ytdlp/update")
 async def update_ytdlp(request: Request):
     return _redirect(await request.app.state.updater.check())
+
+
+@router.post("/settings/descriptions/strip")
+async def strip_embedded_descriptions(request: Request):
+    stripper = request.app.state.stripper
+    if stripper.running:
+        return _redirect("Already removing embedded descriptions")
+    spawn(request.app, stripper.run())
+    return _redirect("Removing embedded descriptions in the background")

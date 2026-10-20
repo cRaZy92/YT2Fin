@@ -19,6 +19,7 @@ from app import organizer, ytdlp_client
 from app import settings as settings_mod
 from app.config import AppConfig, load_config
 from app.db import init_db, make_engine, make_session_factory
+from app.embedded import Stripper
 from app.events import EventBus
 from app.logbuffer import LogBuffer, setup_logging
 from app.notify import Notifier
@@ -115,6 +116,7 @@ def create_app(config: AppConfig | None = None, *, start_background: bool = True
     worker = Worker(session_factory, config, notifier)
     syncer = Syncer(session_factory, config, worker, notifier)
     updater = Updater(worker)
+    stripper = Stripper(session_factory, config.media_root)
     scheduler = Scheduler(session_factory, worker, syncer, updater)
 
     @asynccontextmanager
@@ -152,6 +154,7 @@ def create_app(config: AppConfig | None = None, *, start_background: bool = True
     app.state.worker = worker
     app.state.syncer = syncer
     app.state.updater = updater
+    app.state.stripper = stripper
     app.state.scheduler = scheduler
     app.state.log_buffer = log_buffer
     app.state.exit_code = 0
