@@ -166,6 +166,31 @@ def test_is_channel_url(url, expected):
     assert ytdlp_client.is_channel_url(url) is expected
 
 
+@pytest.mark.parametrize("url, expected", [
+    ("https://www.youtube.com/show/VLPLSMETuURtTXDkOm6Xx4Q-1HS8W54GrBDm",
+     "https://www.youtube.com/playlist?list=PLSMETuURtTXDkOm6Xx4Q-1HS8W54GrBDm"),
+    ("https://m.youtube.com/show/VLPL123_abc?si=x", "https://www.youtube.com/playlist?list=PL123_abc"),
+    ("https://www.youtube.com/playlist?list=PL123", "https://www.youtube.com/playlist?list=PL123"),
+    ("https://www.youtube.com/@Veritasium", "https://www.youtube.com/@Veritasium"),
+])
+def test_resolve_url_turns_show_pages_into_their_playlist(url, expected):
+    assert ytdlp_client.resolve_url(url) == expected
+
+
+def test_fetch_entries_opens_a_show_as_its_playlist(monkeypatch):
+    opened = []
+
+    class FakeYDL:
+        def __init__(self, opts): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def extract_info(self, url, download): opened.append(url); return {"entries": []}
+
+    monkeypatch.setattr(ytdlp_client.yt_dlp, "YoutubeDL", FakeYDL)
+    ytdlp_client.fetch_entries("https://www.youtube.com/show/VLPL123", opts_for(), None)
+    assert opened == ["https://www.youtube.com/playlist?list=PL123"]
+
+
 def test_channel_tab_urls_normalise_to_videos_and_optional_shorts():
     assert ytdlp_client.channel_tab_urls("https://www.youtube.com/@Veritasium/featured?x=1", False) == [
         "https://www.youtube.com/@Veritasium/videos"]

@@ -22,6 +22,8 @@ _PLACEHOLDER_TITLES = {"[Private video]", "[Deleted video]"}
 _CHANNEL_URL = re.compile(
     r"^(?P<base>https?://(?:www\.|m\.)?youtube\.com/(?:@[^/?#]+|channel/[^/?#]+|c/[^/?#]+|user/[^/?#]+))"
 )
+# A show page's id is "VL" + the playlist it is built from; yt-dlp can only open the playlist.
+_SHOW_URL = re.compile(r"^https?://(?:www\.|m\.)?youtube\.com/show/VL(?P<list>[\w-]+)")
 _VCODEC_FILTER = {"h264": "[vcodec^=avc1]", "av1": "[vcodec^=av01]", "vp9": "[vcodec~='^vp0?9']"}
 
 
@@ -221,11 +223,17 @@ def entries_from_info(info: dict[str, Any]) -> list[Entry]:
     return [Entry(info["id"], info.get("title") or info["id"], info.get("channel") or info.get("uploader"))]
 
 
+def resolve_url(url: str) -> str:
+    """The URL yt-dlp should open: a /show/ page becomes its playlist."""
+    show = _SHOW_URL.match(url.strip())
+    return f"https://www.youtube.com/playlist?list={show.group('list')}" if show else url
+
+
 def fetch_entries(url: str, settings: dict[str, Any], cookiefile: Path | None) -> list[Entry]:
     opts = common_opts(settings, cookiefile) | {"extract_flat": "in_playlist", "skip_download": True}
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+            info = ydl.extract_info(resolve_url(url), download=False)
     except yt_dlp.utils.YoutubeDLError as exc:
         message = _clean_message(str(exc))
         raise DownloadFailed(classify(message), message) from exc
@@ -296,7 +304,7 @@ def _tab_info(url: str, settings: dict[str, Any], cookiefile: Path | None) -> di
                                                 "playlist_items": "0"}
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
-            return ydl.extract_info(url, download=False) or {}
+            return ydl.extract_info(resolve_url(url), download=False) or {}
     except yt_dlp.utils.YoutubeDLError as exc:
         message = _clean_message(str(exc))
         raise DownloadFailed(classify(message), message) from exc
