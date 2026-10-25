@@ -43,7 +43,8 @@ _DROP_LINE = re.compile(
     r"|\bmeans of support\b|\bhelps? us (?:to )?(?:continue|keep (?:going|making|doing))\b"
     r"|^\W*check out\b.*\b(?:channels?|links?|socials?|website|podcast)\b"
     r"|\b(?:instagram|twitter|tiktok|discord|facebook|twitch|snapchat|threads|bluesky|reddit|mastodon)\b\s*[:|\-–]"
-    r"|\b(?:supplied by|courtesy of|licensed (?:from|by|under)|stock footage)\b",
+    r"|\b(?:supplied by|courtesy of|licensed (?:from|by|under)|stock footage)\b"
+    r"|\bhuge thanks to playtech for letting us\b",
     re.IGNORECASE,
 )
 _HASHTAG = re.compile(r"#\w+")

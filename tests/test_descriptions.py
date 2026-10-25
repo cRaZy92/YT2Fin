@@ -79,6 +79,11 @@ def test_stock_footage_credit_lines_are_dropped():
     assert clean_description(text, "cleaned") == "We cover 3 photos with disturbing backstories..."
 
 
+def test_venue_thanks_lines_are_dropped():
+    text = "Ollie finally snaps at a customer.\n\nHuge thanks to Playtech for letting us film in their store!"
+    assert clean_description(text, "cleaned") == "Ollie finally snaps at a customer."
+
+
 def _bold(text: str) -> str:
     """Unicode "fancy bold" letters, as some creators style their section headings."""
     return "".join(chr(0x1D5D4 + ord(c) - 65) if "A" <= c <= "Z" else chr(0x1D5EE + ord(c) - 97) if "a" <= c <= "z"
