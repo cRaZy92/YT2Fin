@@ -79,8 +79,30 @@ def test_stock_footage_credit_lines_are_dropped():
     assert clean_description(text, "cleaned") == "We cover 3 photos with disturbing backstories..."
 
 
-def test_venue_thanks_lines_are_dropped():
-    text = "Ollie finally snaps at a customer.\n\nHuge thanks to Playtech for letting us film in their store!"
+@pytest.mark.parametrize("line", [
+    "Huge thanks to Playtech for letting us film in their store!",
+    "Huge thanks to Brandon Fiechter for letting us use his Music. If you like it please check it out here and buy "
+    "his album:",
+])
+def test_thanks_for_letting_us_lines_are_dropped(line):
+    text = f"Ollie finally snaps at a customer.\n\n{line}\n\nThe end."
+    assert clean_description(text, "cleaned") == "Ollie finally snaps at a customer.\n\nThe end."
+
+
+def test_acknowledgments_section_ends_the_description():
+    text = """Ollie finally snaps at a customer.
+
+Acknowledgments
+
+Huge thanks to Brandon Fiechter for letting us use his Music. If you like it please check it out here and buy his album:
+
+Camera Assist: Tom Neunzerling
+Boom Operator: Isaac Williamson
+Costumes: Patrick Cummuskey and Peter Haynes
+Guest Actor: Britt Scott Clark
+Extras: Jared and Dylan
+
+We love you deeply xx"""
     assert clean_description(text, "cleaned") == "Ollie finally snaps at a customer."
 
 
@@ -153,7 +175,8 @@ def test_cleaned_drops_production_credits_sources_and_copyright():
 @pytest.mark.parametrize("line", [
     "All music by: Sabaton", "Sources:", "Executive Producers: A, B", "Editor: Karolina",
     "An OnLion Entertainment GmbH and Stuffed Beaver LTD co-Production.", "© Stuffed Beaver LTD, 2022",
-    "Copyright 2022 Acme. All rights reserved.",
+    "Copyright 2022 Acme. All rights reserved.", "Acknowledgments", "Camera Assist: Tom", "Boom Operator: Isaac",
+    "Costumes: Patrick and Peter", "Guest Actor: Britt", "Extras: Jared and Dylan",
 ])
 def test_each_credit_or_copyright_line_starts_the_footer(line):
     assert clean_description(f"The story.\n\n{line}\nMore credits", "cleaned") == "The story."

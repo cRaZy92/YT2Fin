@@ -14,14 +14,15 @@ _FOOTER_START = re.compile(
     r"|business (?:inquir|enquir|email|contact)|for business\b"
     r"|music (?:by|used|from)\b|music:|credits\b|my gear\b|gear i use\b"
     r"|(?:check out )?our (?:channel )?partners\b|channel partners\b|purchases made\b|disclosure\b"
-    r"|sources?\b[^:]{0,40}:|references\s*:|further reading\b|copyright\b|©"
+    r"|sources?\b[^:]{0,40}:|references\s*:|further reading\b|copyright\b|©|acknowledge?ments?\W*$"
     # Channel-section headings ("OUR CHANNELS", "HOW CAN YOU SUPPORT US?", "OUR MUSIC ♬♪"): alone on their line
     r"|our (?:other )?(?:channels?|voice|music|team|links)\W*$|how (?:can|to) (?:you )?support (?:us|me|the channel)\b"
     r"|discussions?\b.*\bsocial media\b|(?:the )?soundtrack (?:of|for|from) this video\b|additional music\b)"
     # Production credits: "Hosted by: …", "Sound Editor: …", "All music by: …" (a label, then a colon)
     r"|^\W*(?:[\w-]+\s+){0,2}(?:(?:host|written|direct|produc|edit|narrat|animat|present|research|film|scor|mix"
     r"|illustrat|creat|compos)\w*\s+by|(?:host|writer|director|producer|editor|narrator|animator|composer|researcher"
-    r"|cinematographer|camera|design|presenter|illustrator|colou?ri[sz]\w*|music|sound|script|voice)s?(?:\s+by)?)\s*:",
+    r"|cinematographer|camera|design|presenter|illustrator|colou?ri[sz]\w*|music|sound|script|voice|costume|actor"
+    r"|actress|extra|operator|assist(?:ant)?)s?(?:\s+by)?)\s*:",
     re.IGNORECASE,
 )
 # Phrases that mark the start of disclosures wherever they appear in the line.
@@ -44,7 +45,7 @@ _DROP_LINE = re.compile(
     r"|^\W*check out\b.*\b(?:channels?|links?|socials?|website|podcast)\b"
     r"|\b(?:instagram|twitter|tiktok|discord|facebook|twitch|snapchat|threads|bluesky|reddit|mastodon)\b\s*[:|\-–]"
     r"|\b(?:supplied by|courtesy of|licensed (?:from|by|under)|stock footage)\b"
-    r"|\bhuge thanks to playtech for letting us\b",
+    r"|\bhuge thanks to\b.*\bfor letting us\b",
     re.IGNORECASE,
 )
 _HASHTAG = re.compile(r"#\w+")
