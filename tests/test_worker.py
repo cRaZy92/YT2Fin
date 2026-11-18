@@ -202,7 +202,7 @@ async def test_music_metadata_reparsed_unless_user_edited(session, session_facto
         await worker.drain()
     assert (reload(session, auto).artist, reload(session, auto).song) == ("Queen", "Song auto")
     assert (reload(session, edited).artist, reload(session, edited).song) == ("Mine", "Mine")
-    assert (Path(mapping.folder) / "Queen - Song auto.mkv").exists()
+    assert (Path(mapping.folder) / "Queen" / "Song auto.mkv").exists()
 
 
 async def test_worker_waits_and_reports_when_media_root_is_not_writable(session_factory, config, notifier, clock,

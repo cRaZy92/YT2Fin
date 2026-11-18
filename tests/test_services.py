@@ -123,7 +123,7 @@ def test_rename_show_and_music(session, config, make_mapping, add_video):
     music = make_mapping("Music", type=MappingType.MUSIC_VIDEO)
     mv = put_done(session, music, add_video, "m", "x")
     services.rename_video(session, config.media_root, mv, artist="Queen", song="Innuendo")
-    assert (Path(music.folder) / "Queen - Innuendo.mkv").exists()
+    assert (Path(music.folder) / "Queen" / "Innuendo.mkv").exists()
     with pytest.raises(ServiceError):
         services.rename_video(session, config.media_root, mv, artist="", song="x")
 

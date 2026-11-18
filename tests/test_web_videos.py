@@ -127,7 +127,7 @@ def test_filename_preview_while_typing(client, make_mapping, add_video):
     music = make_mapping("Music", type=MappingType.MUSIC_VIDEO)
     mv = add_video(music, "m", artist="A", song="S")
     response = client.get(f"/videos/{mv.id}/preview", params={"artist": "Queen", "song": "Innuendo"})
-    assert response.text.strip() == "Queen - Innuendo.mkv"
+    assert response.text.strip() == "Queen/Innuendo.mkv"
 
 
 def test_saving_the_unchanged_youtube_title_keeps_it_automatic(client, session, make_mapping, add_video):

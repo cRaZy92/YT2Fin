@@ -59,6 +59,13 @@ def tvshow_nfo(title: str, *, plot: str | None = None, studio: str | None = None
     return _render(root)
 
 
+def artist_nfo(name: str) -> str:
+    root = ET.Element("artist")
+    root.append(ET.Comment(f" {MARKER} "))
+    _add(root, "name", name)
+    return _render(root)
+
+
 def episode_nfo(*, title: str, show_title: str, season: int, episode: int, plot: str | None,
                 aired: str | None, youtube_id: str, runtime: int | None = None, studio: str | None = None) -> str:
     root = ET.Element("episodedetails")

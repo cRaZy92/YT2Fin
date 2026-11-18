@@ -23,6 +23,7 @@ THUMB_EXTS = (".jpg", ".jpeg", ".png", ".webp")
 STAGING_NAME = ".ytjs-tmp"
 _COMPANION_TAIL = re.compile(r"\.nfo|-thumb\.(?:jpg|jpeg|png|webp)|\.[A-Za-z0-9_-]{1,15}\.(?:srt|vtt|ass)")
 _SEASON_DIR = re.compile(r"Season \d+")
+ARTIST_NFO = "artist.nfo"
 
 
 class PathError(ValueError):
@@ -264,6 +265,24 @@ def _write_metadata(folder: Path, mapping: Mapping) -> None:
         _write_if_changed(media.with_suffix(".nfo"), content)
     if is_show:
         _ensure_poster(folder, mapping)
+    else:
+        _write_artist_nfos(folder, mapping)
+
+
+def _write_artist_nfos(folder: Path, mapping: Mapping) -> None:
+    """An artist.nfo in each artist folder, named after the artist as spelled on its first video."""
+    names: dict[Path, str] = {}
+    for video in ordered_videos(mapping):
+        if video.status != VideoStatus.DONE or not video.file_path or "/" not in video.file_path:
+            continue
+        artist_dir = (folder / video.file_path).parent
+        if artist_dir.is_dir():
+            names.setdefault(artist_dir, video.artist or artist_dir.name)
+    for artist_dir, name in names.items():
+        path = artist_dir / ARTIST_NFO
+        # Never clobber an artist.nfo someone curated.
+        if not path.exists() or nfo.is_ours(path.read_text(encoding="utf-8", errors="replace")):
+            _write_if_changed(path, nfo.artist_nfo(name))
 
 
 def _ensure_poster(folder: Path, mapping: Mapping) -> None:
@@ -280,10 +299,24 @@ def _ensure_poster(folder: Path, mapping: Mapping) -> None:
             return
 
 
+def _only_our_artist_nfo(path: Path) -> bool:
+    entries = list(path.iterdir())
+    return (len(entries) == 1 and entries[0].name == ARTIST_NFO and entries[0].is_file()
+            and nfo.is_ours(entries[0].read_text(encoding="utf-8", errors="replace")))
+
+
 def _remove_empty_dirs(folder: Path) -> None:
-    """Remove empty season folders only; other folders may belong to the user."""
+    """Remove empty season folders and artist folders left with only our artist.nfo.
+
+    Other folders may belong to the user.
+    """
     for path in folder.iterdir():
-        if path.is_dir() and _SEASON_DIR.fullmatch(path.name) and not any(path.iterdir()):
+        if not path.is_dir():
+            continue
+        if _SEASON_DIR.fullmatch(path.name) and not any(path.iterdir()):
+            path.rmdir()
+        elif _only_our_artist_nfo(path):
+            (path / ARTIST_NFO).unlink()
             path.rmdir()
 
 

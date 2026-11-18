@@ -131,11 +131,48 @@ def test_music_video_layout(session, config, make_mapping, done_video):
     done_video(mapping, "b", "b.mkv", artist="Queen", song="Bohemian Rhapsody")
     apply(session, config, mapping)
     folder = Path(mapping.folder)
-    assert (folder / "Queen - Bohemian Rhapsody.mkv").read_text() == "media a"
-    assert (folder / "Queen - Bohemian Rhapsody (2).mkv").read_text() == "media b"
-    nfo = (folder / "Queen - Bohemian Rhapsody.nfo").read_text()
+    assert (folder / "Queen" / "Bohemian Rhapsody.mkv").read_text() == "media a"
+    assert (folder / "Queen" / "Bohemian Rhapsody (2).mkv").read_text() == "media b"
+    nfo = (folder / "Queen" / "Bohemian Rhapsody.nfo").read_text()
     assert "<artist>Queen</artist>" in nfo and "<title>Bohemian Rhapsody</title>" in nfo
+    assert "<name>Queen</name>" in (folder / "Queen" / "artist.nfo").read_text()
     assert not (folder / "tvshow.nfo").exists()
+
+
+def test_music_video_flat_files_move_into_artist_folders(session, config, make_mapping, done_video):
+    mapping = make_mapping("Music", type=MappingType.MUSIC_VIDEO)
+    video = done_video(mapping, "a", "Queen - Bohemian Rhapsody.mkv", artist="Queen", song="Bohemian Rhapsody")
+    folder = Path(mapping.folder)
+    (folder / "Queen - Bohemian Rhapsody-thumb.jpg").write_text("thumb")
+    apply(session, config, mapping)
+    assert video.file_path == "Queen/Bohemian Rhapsody.mkv"
+    assert (folder / "Queen" / "Bohemian Rhapsody-thumb.jpg").read_text() == "thumb"
+    assert not (folder / "Queen - Bohemian Rhapsody.mkv").exists()
+
+
+def test_artist_rename_removes_the_old_artist_folder(session, config, make_mapping, done_video):
+    mapping = make_mapping("Music", type=MappingType.MUSIC_VIDEO)
+    video = done_video(mapping, "a", "a.mkv", artist="Qeen", song="Innuendo")
+    folder = Path(mapping.folder)
+    (folder / "Mine").mkdir()
+    apply(session, config, mapping)
+    assert (folder / "Qeen" / "artist.nfo").exists()
+    video.artist = "Queen"
+    session.commit()
+    apply(session, config, mapping)
+    assert (folder / "Queen" / "Innuendo.mkv").exists()
+    assert not (folder / "Qeen").exists()
+    assert (folder / "Mine").is_dir()  # the user's own empty folder stays
+
+
+def test_curated_artist_nfo_is_kept(session, config, make_mapping, done_video):
+    mapping = make_mapping("Music", type=MappingType.MUSIC_VIDEO)
+    done_video(mapping, "a", "a.mkv", artist="Queen", song="Innuendo")
+    folder = Path(mapping.folder)
+    (folder / "Queen").mkdir()
+    (folder / "Queen" / "artist.nfo").write_text("<artist><name>Queen</name><biography>x</biography></artist>")
+    apply(session, config, mapping)
+    assert "<biography>x</biography>" in (folder / "Queen" / "artist.nfo").read_text()
 
 
 def test_apply_never_overwrites_foreign_file(session, config, make_mapping, done_video):

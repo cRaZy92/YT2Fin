@@ -60,10 +60,13 @@ def _show_stem(show_title: str, season: int, episode: int, title: str, max_len: 
     return f"Season {season:02d}/{name}"
 
 
-def _music_stem(artist: str, song: str, max_len: int) -> str:
-    artist_part = sanitize(artist, max_len // 2, fallback="Unknown Artist")
-    song_part = sanitize(song, max_len - _nbytes(artist_part) - 3, fallback="Untitled")
-    return f"{artist_part} - {song_part}"
+def _music_stem(artist_dir: str, song: str, max_len: int) -> str:
+    """ErsatzTV layout: every music video sits in its artist's folder (Artist/Song)."""
+    return f"{artist_dir}/{sanitize(song, max_len, fallback='Untitled')}"
+
+
+def artist_folder(artist: str, max_len: int = 180) -> str:
+    return sanitize(artist, max_len, fallback="Unknown Artist")
 
 
 def compute_stems(mapping_type: str, show_title: str, items: list[NamingItem], max_len: int = 180) -> dict[int, str]:
@@ -73,8 +76,12 @@ def compute_stems(mapping_type: str, show_title: str, items: list[NamingItem], m
     if mapping_type == "music_video":
         stems: dict[int, str] = {}
         used: set[str] = set()
+        # "Queen" and "queen" share one folder (the first spelling), so one artist is one artist.
+        artist_dirs: dict[str, str] = {}
         for item in items:
-            base = _music_stem(item.artist, item.song, max_len - 5)
+            folder = artist_dirs.setdefault(artist_folder(item.artist, max_len).casefold(),
+                                            artist_folder(item.artist, max_len))
+            base = _music_stem(folder, item.song, max_len - 5)
             candidate, n = base, 1
             while candidate.casefold() in used:
                 n += 1

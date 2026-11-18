@@ -4,7 +4,9 @@ Self-hosted service that keeps YouTube playlists (or hand-picked lists) in your 
 named the way Jellyfin expects:
 
 - **Shows:** `Season 01/Show S01E01 Video Title.mkv` + `.nfo` + `-thumb.jpg` + `tvshow.nfo`
-- **Music videos:** `Artist - Song.mkv` + `.nfo` + `-thumb.jpg`
+- **Music videos:** `Artist/Song.mkv` + `.nfo` + `-thumb.jpg`, plus an `artist.nfo` in each artist folder
+  ([ErsatzTV layout](https://ersatztv.org/docs/media/local/musicvideos), which Jellyfin reads too).
+  Files from older versions sitting flat in the folder are moved into artist folders on the next sync
 
 ## Run
 

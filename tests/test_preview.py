@@ -73,7 +73,7 @@ async def test_preview_music_video_names_use_the_sync_parser(fetched, monkeypatc
                         lambda *a: [Entry("q", "Queen - Innuendo (Official Video)", "Queen Official")])
     result = await preview.build_preview(
         show_input(type=MappingType.MUSIC_VIDEO, title_filter=None, show_title=None), dict(settings_mod.DEFAULTS), None)
-    assert result.rows[0].file_name == "Queen - Innuendo.mkv"
+    assert result.rows[0].file_name == "Queen/Innuendo.mkv"
 
 
 async def test_preview_without_url_is_an_error(fetched):

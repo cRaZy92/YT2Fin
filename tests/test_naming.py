@@ -55,10 +55,15 @@ def test_music_video_stems_with_duplicates():
         NamingItem(4, artist="", song=""),
     ]
     stems = compute_stems("music_video", "", items)
-    assert stems[1] == "Queen - Bohemian Rhapsody"
-    assert stems[2] == "queen - bohemian rhapsody (2)"
-    assert stems[3] == "Queen - Bohemian Rhapsody (2) (2)"
-    assert stems[4] == "Unknown Artist - Untitled"
+    assert stems[1] == "Queen/Bohemian Rhapsody"
+    assert stems[2] == "Queen/bohemian rhapsody (2)"  # one folder per artist, whatever the case
+    assert stems[3] == "Queen/Bohemian Rhapsody (2) (2)"
+    assert stems[4] == "Unknown Artist/Untitled"
+
+
+def test_music_video_artist_folders_are_sanitized():
+    stems = compute_stems("music_video", "", [NamingItem(1, artist="AC/DC", song="T.N.T.")])
+    assert stems[1] == "AC DC/T.N.T"
 
 
 def test_hostile_titles():
@@ -90,8 +95,8 @@ def test_sanitize_caps_utf8_bytes_on_character_boundary():
 def test_long_cjk_and_emoji_names_fit_linux_255_byte_limit_with_companions():
     items = [NamingItem(1, title="長いタイトル" * 60), NamingItem(2, artist="🔥" * 80, song="歌" * 200)]
     show = compute_stems("show", "番組" * 50, items[:1])[1].split("/")[1]
-    music = compute_stems("music_video", "", items[1:])[2]
-    for name in (show, music):
+    artist, song = compute_stems("music_video", "", items[1:])[2].split("/")
+    for name in (show, artist, song):
         assert len(name.encode()) <= 180
         assert len((name + "-thumb.jpg").encode()) <= 255
     assert "S01E01" in show
