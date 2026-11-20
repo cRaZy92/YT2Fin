@@ -1,7 +1,11 @@
 # Works locally as-is and on Dokploy by setting variables in its Environment tab (see .env.example).
 services:
   yt-jellyfin-sync:
-    build: .
+    build:
+      context: .
+      # Build on the host's network: Docker's bridge network can stall large downloads (MTU) on some servers,
+      # which makes pip time out on PyPI.
+      network: host
     image: yt-jellyfin-sync:latest
     init: true
     restart: unless-stopped
