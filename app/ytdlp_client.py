@@ -29,6 +29,10 @@ _VCODEC_FILTER = {"h264": "[vcodec^=avc1]", "av1": "[vcodec^=av01]", "vp9": "[vc
 
 _pot_provider_url: str | None = None
 
+# Clients for a second attempt after HTTP 403. Some videos (e.g. age-restricted ones) make yt-dlp pick
+# web_creator formats whose PO token YouTube rejects; the TV client serves them without one.
+FORBIDDEN_FALLBACK_CLIENTS = ["tv_samsung", "tv"]
+
 
 def configure(*, pot_provider_url: str | None) -> None:
     """Process-wide yt-dlp options that come from the environment (set once at startup)."""
@@ -367,6 +371,18 @@ def _progress_event(d: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _download_once(youtube_id: str, opts: dict[str, Any], is_cancelled: Callable[[], bool]) -> dict[str, Any]:
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            return ydl.extract_info(video_url(youtube_id), download=True)
+    except Exception as exc:
+        if is_cancelled() or isinstance(exc, Cancelled):
+            raise Cancelled() from exc
+        message = _clean_message(str(exc))
+        kind = classify(message) if isinstance(exc, yt_dlp.utils.YoutubeDLError) else ErrorKind.TRANSIENT
+        raise DownloadFailed(kind, message) from exc
+
+
 def download(youtube_id: str, settings: dict[str, Any], staging_dir: Path, cookiefile: Path | None,
              on_progress: Callable[[dict], None], is_cancelled: Callable[[], bool]) -> tuple[VideoInfo, Path, list[Path]]:
     staging_dir.mkdir(parents=True, exist_ok=True)
@@ -386,14 +402,17 @@ def download(youtube_id: str, settings: dict[str, Any], staging_dir: Path, cooki
 
     opts = download_opts(settings, staging_dir, cookiefile, progress_hook, pp_hook)
     try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(video_url(youtube_id), download=True)
-    except Exception as exc:
-        if is_cancelled() or isinstance(exc, Cancelled):
-            raise Cancelled() from exc
-        message = _clean_message(str(exc))
-        kind = classify(message) if isinstance(exc, yt_dlp.utils.YoutubeDLError) else ErrorKind.TRANSIENT
-        raise DownloadFailed(kind, message) from exc
+        info = _download_once(youtube_id, opts, is_cancelled)
+    except DownloadFailed as failed:
+        if failed.kind != ErrorKind.FORBIDDEN:
+            raise
+        log.warning("%s: HTTP 403, retrying with the %s client", youtube_id, "/".join(FORBIDDEN_FALLBACK_CLIENTS))
+        for leftover in staging_dir.iterdir():
+            if leftover.is_file():
+                leftover.unlink()
+        extractor_args = dict(opts.get("extractor_args", {}))
+        extractor_args["youtube"] = {"player_client": FORBIDDEN_FALLBACK_CLIENTS}
+        info = _download_once(youtube_id, opts | {"extractor_args": extractor_args}, is_cancelled)
     if is_cancelled():
         raise Cancelled()
     media, extras = collect_outputs(staging_dir)

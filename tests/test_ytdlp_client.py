@@ -101,9 +101,11 @@ def test_collect_outputs(tmp_path):
 class FakeYDL:
     """Stands in for yt_dlp.YoutubeDL; behaviour is set per test via class attributes."""
     behaviour = "ok"
+    calls: list[dict] = []
 
     def __init__(self, opts):
         self.opts = opts
+        FakeYDL.calls.append(opts)
 
     def __enter__(self):
         return self
@@ -115,6 +117,10 @@ class FakeYDL:
         staging = Path(self.opts["outtmpl"]).parent
         if FakeYDL.behaviour == "private":
             raise yt_dlp.utils.DownloadError("ERROR: [youtube] abc: Private video")
+        clients = self.opts.get("extractor_args", {}).get("youtube", {}).get("player_client")
+        if FakeYDL.behaviour in ("403", "403-always") and (FakeYDL.behaviour == "403-always" or not clients):
+            (staging / "media.f399.webm.part").write_text("partial")
+            raise yt_dlp.utils.DownloadError("ERROR: unable to download video data: HTTP Error 403: Forbidden")
         for hook in self.opts["progress_hooks"]:
             hook({"status": "downloading", "downloaded_bytes": 50, "total_bytes": 100, "speed": 10.0, "eta": 5})
         (staging / "media.mkv").write_text("video")
@@ -126,6 +132,7 @@ class FakeYDL:
 @pytest.fixture
 def fake_ydl(monkeypatch):
     FakeYDL.behaviour = "ok"
+    FakeYDL.calls = []
     monkeypatch.setattr(ytdlp_client.yt_dlp, "YoutubeDL", FakeYDL)
     return FakeYDL
 
@@ -144,6 +151,28 @@ def test_download_error_is_classified(fake_ydl, tmp_path):
         ytdlp_client.download("abc", opts_for(), tmp_path / "stage", None, lambda d: None, lambda: False)
     assert exc.value.kind == ErrorKind.PERMANENT
     assert exc.value.message == "[youtube] abc: Private video"
+
+
+def test_download_retries_a_403_with_the_tv_client(fake_ydl, monkeypatch, tmp_path):
+    # Age-restricted videos: yt-dlp picks web_creator formats whose PO token YouTube rejects (403);
+    # the TV client serves the same video fine.
+    monkeypatch.setattr(ytdlp_client, "_pot_provider_url", "http://pot:4416")
+    fake_ydl.behaviour = "403"
+    info, media, _ = ytdlp_client.download("abc", opts_for(), tmp_path / "stage", None, lambda d: None, lambda: False)
+    assert media.name == "media.mkv" and info.title == "Title"
+    assert len(fake_ydl.calls) == 2
+    retry_args = fake_ydl.calls[1]["extractor_args"]
+    assert retry_args["youtube"]["player_client"] == ytdlp_client.FORBIDDEN_FALLBACK_CLIENTS
+    assert retry_args["youtubepot-bgutilhttp"] == {"base_url": ["http://pot:4416"]}
+    assert not list((tmp_path / "stage").glob("*.part"))
+
+
+def test_download_403_after_the_fallback_is_still_forbidden(fake_ydl, tmp_path):
+    fake_ydl.behaviour = "403-always"
+    with pytest.raises(DownloadFailed) as exc:
+        ytdlp_client.download("abc", opts_for(), tmp_path / "stage", None, lambda d: None, lambda: False)
+    assert exc.value.kind == ErrorKind.FORBIDDEN
+    assert len(fake_ydl.calls) == 2
 
 
 def test_download_cancelled(fake_ydl, tmp_path):
